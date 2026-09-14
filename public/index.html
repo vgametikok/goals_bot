@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>MYGOALS</title>
 <style>
 :root {
@@ -344,12 +344,286 @@ button, input, select, textarea { font: inherit; }
   color: #6b7280;
 }
 
-@media (max-width: 720px) {
-  .app { padding: 12px; }
-  .week-title { font-size: 1.2rem; min-width: 0; }
-  .modal__row { grid-template-columns: 1fr; }
-  .month-grid { min-width: 0; }
+/* ── Mobile / touch-first ── */
+.btn--more {
+  display: none;
+  background: var(--surface); border: 1px solid var(--line);
+  color: var(--text); box-shadow: var(--shadow);
+  min-width: 44px; min-height: 44px; padding: 8px 12px;
+  font-size: 1.35rem; line-height: 1;
 }
+.header-actions__panel {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+}
+.header-menu-backdrop {
+  display: none; position: fixed; inset: 0; z-index: 45;
+  background: transparent;
+}
+.header-menu-backdrop.is-open { display: block; }
+.task-card.is-touch-dragging {
+  opacity: 0.55; z-index: 20;
+  box-shadow: 0 12px 28px rgba(31, 41, 55, 0.22);
+  touch-action: none;
+}
+body.is-dragging-task {
+  overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: none;
+}
+body.is-dragging-task .app-main { touch-action: none; }
+.task-card__action--move { color: #5b3d9a; }
+.move-sheet .modal { width: min(420px, 100%); }
+.mobile-only { display: none !important; }
+
+@media (max-width: 768px), (pointer: coarse) {
+  .mobile-only { display: inline-flex !important; }
+  .desktop-only { display: none !important; }
+
+  html, body {
+    height: 100%;
+    height: 100dvh;
+  }
+  body {
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+  }
+  .app {
+    padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px));
+    padding-top: calc(10px + env(safe-area-inset-top, 0px));
+    max-width: 100%;
+  }
+  .app-header { gap: 10px; margin-bottom: 10px; }
+  .app-header__top {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  .tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    gap: 8px;
+    padding-bottom: 2px;
+    margin: 0 -2px;
+    padding-left: 2px;
+    padding-right: 2px;
+  }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab {
+    flex: none;
+    min-height: 40px;
+    padding: 10px 16px;
+    font-size: 0.9rem;
+  }
+
+  .header-actions {
+    position: relative;
+    justify-content: flex-end;
+    gap: 8px;
+    flex-wrap: nowrap;
+  }
+  .btn--more { display: inline-flex; align-items: center; justify-content: center; }
+  .header-actions__panel {
+    display: none;
+    position: absolute;
+    right: 0; top: calc(100% + 6px);
+    z-index: 46;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+    min-width: 200px;
+    padding: 10px;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    box-shadow: 0 16px 40px rgba(31, 41, 55, 0.16);
+  }
+  .header-actions__panel.is-open { display: flex; }
+  .header-actions__panel .btn,
+  .header-actions__panel .user-chip {
+    width: 100%;
+    justify-content: center;
+    min-height: 44px;
+  }
+  .header-actions__panel .user-chip { display: flex; }
+
+  .app-header__week {
+    flex-wrap: wrap;
+    width: 100%;
+    gap: 8px;
+  }
+  .nav-arrow {
+    width: 44px; height: 44px; min-width: 44px;
+    font-size: 1.55rem; border-radius: 14px;
+  }
+  .week-title {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: 1.15rem;
+    text-align: center;
+  }
+  .btn--week {
+    margin-left: 0;
+    min-height: 40px;
+    width: 100%;
+    order: 5;
+  }
+  .nav-jump {
+    flex: 1 1 100%;
+    margin-left: 0;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    width: 100%;
+  }
+  .nav-jump .btn {
+    width: 100%;
+    min-height: 44px;
+    padding: 10px 8px;
+    font-size: 0.9rem;
+  }
+
+  /* Day-first: shorter slots so more hours fit */
+  :root { --slot-h: 108px; }
+  .app.is-compact { --slot-h: 72px; }
+
+  .app-main {
+    border-radius: 18px;
+    padding: 4px;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+  .week-grid__header {
+    padding: 6px 4px 8px;
+    gap: 4px;
+  }
+  .week-grid__body { padding: 0 4px 10px; gap: 4px; }
+  .week-grid__times { min-width: 42px; }
+  .week-grid__header { grid-template-columns: 42px repeat(7, minmax(120px, 1fr)); }
+  .week-grid__body { grid-template-columns: 42px 1fr; }
+  .week-grid:not(.week-grid--day) {
+    min-width: calc(42px + 7 * 120px + 48px);
+  }
+  .week-grid--day {
+    min-width: 0;
+    width: 100%;
+  }
+  .week-grid--day .week-grid__header { grid-template-columns: 42px 1fr; }
+  .week-grid__dayhead { padding: 10px 6px; min-height: 52px; }
+  .task-card {
+    padding: 8px 10px 24px;
+    min-height: 44px;
+    touch-action: manipulation;
+    cursor: pointer;
+  }
+  .task-card:hover { transform: none; }
+  .task-card:hover .task-card__time { opacity: 1; }
+  .task-card .task-card__actions {
+    display: flex;
+  }
+  .task-card:hover .task-card__time { opacity: 0.35; }
+  .task-card__action {
+    width: 28px; height: 28px; font-size: 0.85rem;
+  }
+  .task-card__check {
+    width: 24px; height: 24px;
+  }
+
+  /* Bottom-sheet modals */
+  .modal-backdrop {
+    align-items: flex-end;
+    place-items: end center;
+    padding: 0;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .modal-backdrop .modal,
+  .modal {
+    width: 100%;
+    max-width: 100%;
+    border-radius: 20px 20px 0 0;
+    max-height: min(92dvh, 92vh);
+    margin: 0;
+  }
+  .modal--lg, .modal--sm { width: 100%; max-width: 100%; }
+  .modal__form input,
+  .modal__form select,
+  .modal__form textarea,
+  .manage-row input[type="text"],
+  .manage-add input[type="text"] {
+    font-size: 16px; /* prevent iOS zoom */
+    min-height: 44px;
+  }
+  .modal__form textarea { min-height: 88px; }
+  .modal__row { grid-template-columns: 1fr; }
+  .modal__footer { flex-direction: column; align-items: stretch; }
+  .modal__footer-left, .modal__footer-right {
+    width: 100%;
+    justify-content: stretch;
+  }
+  .modal__footer .btn { flex: 1; min-height: 44px; }
+  .icon-btn { width: 44px; height: 44px; }
+  .repeat-day { width: 44px; height: 44px; }
+
+  /* Month */
+  .month-grid { min-width: 0; }
+  .month-grid__body {
+    gap: 4px;
+    min-height: 0;
+    grid-auto-rows: minmax(64px, 1fr);
+  }
+  .month-cell {
+    min-height: 64px;
+    padding: 8px 6px;
+    border-radius: 10px;
+  }
+  .month-cell__date { font-size: 0.95rem; }
+  .month-cell__task { font-size: 0.62rem; padding: 2px 4px; }
+  .month-popover {
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    top: auto !important;
+    width: 100%;
+    max-width: 100%;
+    max-height: min(70dvh, 70vh);
+    border-radius: 20px 20px 0 0;
+    border-left: none; border-right: none; border-bottom: none;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .month-popover__item { padding: 12px 10px; min-height: 44px; font-size: 0.9rem; }
+  .month-popover__footer .btn { min-height: 44px; }
+
+  /* Login */
+  .login-screen {
+    padding: calc(16px + env(safe-area-inset-top, 0px)) 16px calc(16px + env(safe-area-inset-bottom, 0px));
+  }
+  .login-logo {
+    width: min(200px, 62%);
+    margin-bottom: 16px;
+  }
+  .login-card {
+    padding: 28px 18px 22px;
+    border-radius: 18px;
+  }
+  .login-card .btn--telegram {
+    width: 100%;
+    min-height: 48px;
+    font-size: 1.02rem;
+  }
+  .login-modal .modal-card {
+    width: 100%;
+    max-width: 100%;
+    border-radius: 20px 20px 0 0;
+    margin-top: auto;
+  }
+}
+
+@media (max-width: 768px) and (pointer: fine) {
+  /* narrow desktop window: still use mobile layout helpers */
+  .task-card { cursor: grab; }
+}
+
 
 .app.is-month .app-main {
   overflow: auto;
@@ -642,6 +916,27 @@ button, input, select, textarea { font: inherit; }
 }
 .login-card { text-align: center; }
 .login-card .btn--telegram { width: 100%; justify-content: center; }
+
+@media (min-width: 769px) and (pointer: fine) {
+  .btn--more { display: none !important; }
+  .header-menu-backdrop { display: none !important; }
+  .header-actions__panel {
+    display: flex !important;
+    position: static;
+    min-width: 0;
+    padding: 0;
+    border: none;
+    box-shadow: none;
+    background: transparent;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+  }
+  .header-actions__panel .btn,
+  .header-actions__panel .user-chip { width: auto; min-height: 0; }
+}
+
 </style>
 </head>
 <body>
@@ -662,18 +957,22 @@ button, input, select, textarea { font: inherit; }
     <div class="app-header__top">
       <nav class="tabs" id="tabs" aria-label="Категории"></nav>
       <div class="header-actions">
-        <button type="button" class="btn btn--compact" id="btn-month" aria-pressed="false" title="Месяц">
-          Месяц
-        </button>
-        <button type="button" class="btn btn--compact" id="btn-compact" aria-pressed="false" title="Компактный вид">
-          <span class="compact-ico" aria-hidden="true"><span></span><span></span><span></span></span>
-          Компактно
-        </button>
-        <span class="user-chip" id="user-chip" hidden><strong id="user-name"></strong></span>
-        <span class="save-indicator" id="save-indicator" aria-live="polite"></span>
-        <button type="button" class="btn btn--logout" id="btn-logout" title="Выйти">Выйти</button>
-        <button type="button" class="btn btn--settings" id="btn-settings">⚙ Настройки</button>
+        <button type="button" class="btn btn--more" id="btn-more" aria-expanded="false" aria-controls="header-actions-panel" title="Меню">⋯</button>
+        <div class="header-actions__panel" id="header-actions-panel">
+          <button type="button" class="btn btn--compact" id="btn-month" aria-pressed="false" title="Месяц">
+            Месяц
+          </button>
+          <button type="button" class="btn btn--compact" id="btn-compact" aria-pressed="false" title="Компактный вид">
+            <span class="compact-ico" aria-hidden="true"><span></span><span></span><span></span></span>
+            Компактно
+          </button>
+          <span class="user-chip" id="user-chip" hidden><strong id="user-name"></strong></span>
+          <span class="save-indicator" id="save-indicator" aria-live="polite"></span>
+          <button type="button" class="btn btn--logout" id="btn-logout" title="Выйти">Выйти</button>
+          <button type="button" class="btn btn--settings" id="btn-settings">⚙ Настройки</button>
+        </div>
       </div>
+      <div class="header-menu-backdrop" id="header-menu-backdrop" hidden></div>
     </div>
     <div class="app-header__week">
       <button type="button" class="nav-arrow" id="btn-prev" aria-label="Назад">‹</button>
@@ -688,6 +987,27 @@ button, input, select, textarea { font: inherit; }
     </div>
   </header>
   <main class="app-main" id="main"></main>
+</div>
+
+
+<!-- Move task sheet (touch) -->
+<div class="modal-backdrop move-sheet" id="move-modal" hidden>
+  <div class="modal modal--sm" role="dialog" aria-modal="true" aria-labelledby="move-modal-title">
+    <header class="modal__header">
+      <h2 id="move-modal-title">Переместить</h2>
+      <button type="button" class="icon-btn" id="move-modal-close" aria-label="Закрыть">×</button>
+    </header>
+    <form class="modal__form" id="move-form">
+      <label>Дата<input type="date" name="date" id="move-date" required></label>
+      <label>Начало<input type="time" name="start" id="move-start" required></label>
+      <footer class="modal__footer">
+        <div class="modal__footer-right" style="width:100%;display:flex;gap:8px;">
+          <button type="button" class="btn btn--ghost" id="move-modal-cancel">Отмена</button>
+          <button type="submit" class="btn btn--primary">Переместить</button>
+        </div>
+      </footer>
+    </form>
+  </div>
 </div>
 
 <!-- Task modal -->
@@ -755,9 +1075,9 @@ button, input, select, textarea { font: inherit; }
     <div class="modal__body">
       <p class="muted">Данные сохраняются на сервере для вашего аккаунта Telegram. Часовой пояс сетки: МСК. Сетка: 00:00–24:00, по умолчанию открывается около 08:00 — прокрутите колёсиком вверх/вниз.</p>
       <ul class="settings-list">
-        <li>Перетаскивайте карточки на другой день или время</li>
-        <li>Клик по пустой ячейке — новая задача</li>
-        <li>Клик по карточке — редактирование; в форме — Удалить / Скопировать</li>
+        <li>Перетаскивайте карточки на другой день или время (на телефоне — долгое нажатие или «Переместить»)</li>
+        <li>Клик / касание пустой ячейки — новая задача</li>
+        <li>Клик / касание карточки — редактирование; в форме — Удалить / Скопировать</li>
         <li>Галочка на карточке — статус «выполнено»</li>
         <li>При удалении категории задачи автоматически переносятся в первую оставшуюся</li>
       </ul>
@@ -799,7 +1119,17 @@ button, input, select, textarea { font: inherit; }
   var HOUR_END = 24;
   var SLOT_HEIGHT = 144;
   var SLOT_HEIGHT_COMPACT = 96;
+  var SLOT_HEIGHT_MOBILE = 108;
+  var SLOT_HEIGHT_MOBILE_COMPACT = 72;
   var COMPACT_CARD_HEIGHT = 56;
+  var COMPACT_CARD_HEIGHT_MOBILE = 48;
+  var MOBILE_MQ = '(max-width: 768px)';
+  var COARSE_MQ = '(pointer: coarse)';
+  var LONG_PRESS_MS = 380;
+  var DRAG_MOVE_THRESHOLD = 12;
+  var TAP_MOVE_THRESHOLD = 10;
+  var SWIPE_MIN_DX = 56;
+  var SWIPE_MAX_DY = 40;
   var DEFAULT_SCROLL_HOUR = 8;
   var DAY_NAMES = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
   var MONTHS_GENITIVE = [
@@ -1234,7 +1564,9 @@ button, input, select, textarea { font: inherit; }
     dragOver: null,
     dragId: null,
     scrollToDefaultHour: true,
-    savedScrollTop: null
+    savedScrollTop: null,
+    preferDayOnMobile: true,
+    userChoseWeekOnMobile: false
   };
   rebuildMaps();
 
@@ -1275,8 +1607,27 @@ button, input, select, textarea { font: inherit; }
   var elApp = document.querySelector('.app');
   var monthPopoverIso = null;
 
+  function isMobileLayout() {
+    try {
+      return window.matchMedia(MOBILE_MQ).matches || window.matchMedia(COARSE_MQ).matches;
+    } catch (e) {
+      return window.innerWidth <= 768;
+    }
+  }
+
+  function isNarrowScreen() {
+    try { return window.matchMedia(MOBILE_MQ).matches; }
+    catch (e) { return window.innerWidth <= 768; }
+  }
+
   function getSlotHeight() {
-    return state.compact ? SLOT_HEIGHT_COMPACT : SLOT_HEIGHT;
+    var mobile = isNarrowScreen();
+    if (state.compact) return mobile ? SLOT_HEIGHT_MOBILE_COMPACT : SLOT_HEIGHT_COMPACT;
+    return mobile ? SLOT_HEIGHT_MOBILE : SLOT_HEIGHT;
+  }
+
+  function getCompactCardHeight() {
+    return isNarrowScreen() ? COMPACT_CARD_HEIGHT_MOBILE : COMPACT_CARD_HEIGHT;
   }
 
   function syncCompactUI() {
@@ -1448,9 +1799,18 @@ button, input, select, textarea { font: inherit; }
     closeMonthPopover();
     state.previousScheduleMode = 'week';
     state.viewMode = 'week';
+    if (isNarrowScreen()) state.userChoseWeekOnMobile = true;
     state.scrollToDefaultHour = true;
     saveState();
     render();
+  }
+
+  function applyMobileViewPreference() {
+    if (!isNarrowScreen()) return;
+    if (state.viewMode === 'week' && state.preferDayOnMobile && !state.userChoseWeekOnMobile) {
+      state.viewMode = 'day';
+      state.previousScheduleMode = 'day';
+    }
   }
 
   function enterMonthView() {
@@ -1603,8 +1963,8 @@ button, input, select, textarea { font: inherit; }
     var slotH = getSlotHeight();
     var top = ((task.startMinutes - HOUR_START * 60) / 60) * slotH;
     var height = state.compact
-      ? COMPACT_CARD_HEIGHT
-      : Math.max(48, ((task.endMinutes - task.startMinutes) / 60) * slotH - 4);
+      ? getCompactCardHeight()
+      : Math.max(isMobileLayout() ? 44 : 48, ((task.endMinutes - task.startMinutes) / 60) * slotH - 4);
     var badgesHtml = '';
     var seen = {};
     (task.badges || []).forEach(function (bid) {
@@ -1630,6 +1990,7 @@ button, input, select, textarea { font: inherit; }
     html += (task.completed ? '✓' : '') + '</button>';
     html += '</div>';
     html += '<div class="task-card__actions">';
+    html += '<button type="button" class="task-card__action task-card__action--move" data-move="' + esc(task.id) + '" title="Переместить">✥</button>';
     html += '<button type="button" class="task-card__action" data-copy="' + esc(task.id) + '" title="Скопировать">⧉</button>';
     html += '<button type="button" class="task-card__action task-card__action--danger" data-delete="' + esc(task.id) + '" title="Удалить">✕</button>';
     html += '</div>';
@@ -1717,6 +2078,14 @@ button, input, select, textarea { font: inherit; }
   }
 
   function positionMonthPopover(pop, anchor) {
+    if (isMobileLayout()) {
+      pop.style.left = '0px';
+      pop.style.right = '0px';
+      pop.style.top = 'auto';
+      pop.style.bottom = '0px';
+      pop.style.width = '100%';
+      return;
+    }
     var rect = anchor.getBoundingClientRect();
     var pw = pop.offsetWidth;
     var ph = pop.offsetHeight;
@@ -1730,6 +2099,8 @@ button, input, select, textarea { font: inherit; }
     }
     pop.style.left = left + 'px';
     pop.style.top = top + 'px';
+    pop.style.bottom = '';
+    pop.style.right = '';
   }
 
   function openMonthPopover(iso, anchor) {
@@ -1811,6 +2182,7 @@ button, input, select, textarea { font: inherit; }
     var cols = elMain.querySelectorAll('.week-grid__col');
     cols.forEach(function (col) {
       col.addEventListener('click', function (e) {
+        if (pointerDrag.suppressClick) return;
         if (e.target.closest('.task-card')) return;
         var rect = col.getBoundingClientRect();
         var y = e.clientY - rect.top;
@@ -1866,7 +2238,12 @@ button, input, select, textarea { font: inherit; }
 
     var cards = elMain.querySelectorAll('.task-card');
     cards.forEach(function (card) {
+      // Mouse HTML5 DnD (desktop)
       card.addEventListener('dragstart', function (e) {
+        if (pointerDrag.active) {
+          e.preventDefault();
+          return;
+        }
         var id = card.getAttribute('data-id');
         state.dragId = id;
         e.dataTransfer.setData('text/plain', id);
@@ -1882,7 +2259,12 @@ button, input, select, textarea { font: inherit; }
         render();
       });
       card.addEventListener('click', function (e) {
-        if (e.target.closest('[data-toggle], [data-copy], [data-delete], .task-card__actions')) return;
+        if (pointerDrag.suppressClick) {
+          e.preventDefault();
+          e.stopPropagation();
+          return;
+        }
+        if (e.target.closest('[data-toggle], [data-copy], [data-delete], [data-move], .task-card__actions')) return;
         openEdit(card.getAttribute('data-id'));
       });
       card.addEventListener('keydown', function (e) {
@@ -1891,6 +2273,7 @@ button, input, select, textarea { font: inherit; }
           openEdit(card.getAttribute('data-id'));
         }
       });
+      bindPointerCardDrag(card);
     });
 
     elMain.querySelectorAll('[data-toggle]').forEach(function (btn) {
@@ -1921,6 +2304,246 @@ button, input, select, textarea { font: inherit; }
         }
       });
     });
+
+    elMain.querySelectorAll('[data-move]').forEach(function (btn) {
+      btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        openMoveSheet(btn.getAttribute('data-move'));
+      });
+    });
+
+    bindDaySwipe();
+  }
+
+  // ── Pointer / touch drag (long-press → drag) ───────────────
+  var pointerDrag = {
+    active: false,
+    dragging: false,
+    suppressClick: false,
+    pointerId: null,
+    id: null,
+    card: null,
+    startX: 0,
+    startY: 0,
+    timer: null,
+    moved: false
+  };
+
+  function clearPointerTimer() {
+    if (pointerDrag.timer) {
+      clearTimeout(pointerDrag.timer);
+      pointerDrag.timer = null;
+    }
+  }
+
+  function updatePointerGhost(clientX, clientY) {
+    var cols = elMain.querySelectorAll('.week-grid__col');
+    var target = null;
+    cols.forEach(function (col) {
+      var r = col.getBoundingClientRect();
+      if (clientX >= r.left && clientX <= r.right && clientY >= r.top && clientY <= r.bottom) {
+        target = col;
+      }
+    });
+    cols.forEach(function (c) { c.classList.remove('is-drop'); });
+    cols.forEach(function (c) {
+      var g = c.querySelector('.week-grid__ghost');
+      if (g) g.remove();
+    });
+    if (!target) {
+      state.dragOver = null;
+      return null;
+    }
+    var dayIndex = Number(target.getAttribute('data-day'));
+    var rect = target.getBoundingClientRect();
+    var y = clientY - rect.top;
+    var minutes = snapMinutes(HOUR_START * 60 + (y / getSlotHeight()) * 60);
+    state.dragOver = { day: dayIndex, minutes: minutes, date: target.getAttribute('data-date') };
+    target.classList.add('is-drop');
+    var ghost = document.createElement('div');
+    ghost.className = 'week-grid__ghost';
+    ghost.style.top = ((minutes - HOUR_START * 60) / 60) * getSlotHeight() + 'px';
+    target.appendChild(ghost);
+    return target;
+  }
+
+  function beginPointerDrag() {
+    if (!pointerDrag.card || pointerDrag.dragging) return;
+    pointerDrag.dragging = true;
+    pointerDrag.active = true;
+    state.dragId = pointerDrag.id;
+    pointerDrag.card.classList.add('is-touch-dragging');
+    pointerDrag.card.style.opacity = '0.45';
+    document.body.classList.add('is-dragging-task');
+    try { navigator.vibrate && navigator.vibrate(12); } catch (e) { /* ignore */ }
+  }
+
+  function endPointerDrag(clientX, clientY, cancelled) {
+    clearPointerTimer();
+    var wasDragging = pointerDrag.dragging;
+    var id = pointerDrag.id;
+    var card = pointerDrag.card;
+    if (card) {
+      card.classList.remove('is-touch-dragging');
+      card.style.opacity = '';
+      try {
+        if (pointerDrag.pointerId != null) card.releasePointerCapture(pointerDrag.pointerId);
+      } catch (e) { /* ignore */ }
+    }
+    document.body.classList.remove('is-dragging-task');
+
+    if (wasDragging && !cancelled && id && state.dragOver && state.dragOver.date) {
+      moveTask(id, state.dragOver.date, state.dragOver.minutes);
+      pointerDrag.suppressClick = true;
+      setTimeout(function () { pointerDrag.suppressClick = false; }, 280);
+      state.dragOver = null;
+      state.dragId = null;
+      pointerDrag.active = false;
+      pointerDrag.dragging = false;
+      pointerDrag.card = null;
+      pointerDrag.id = null;
+      pointerDrag.pointerId = null;
+      state.scrollToDefaultHour = false;
+      state.savedScrollTop = elMain.scrollTop;
+      render();
+      return;
+    }
+
+    state.dragOver = null;
+    state.dragId = null;
+    // Clean ghosts
+    if (elMain) {
+      elMain.querySelectorAll('.week-grid__col.is-drop').forEach(function (c) { c.classList.remove('is-drop'); });
+      elMain.querySelectorAll('.week-grid__ghost').forEach(function (g) { g.remove(); });
+    }
+    pointerDrag.active = false;
+    pointerDrag.dragging = false;
+    pointerDrag.card = null;
+    pointerDrag.id = null;
+    pointerDrag.pointerId = null;
+  }
+
+  function onPointerMoveDoc(e) {
+    if (!pointerDrag.active && !pointerDrag.timer) return;
+    if (pointerDrag.pointerId != null && e.pointerId !== pointerDrag.pointerId) return;
+    var dx = e.clientX - pointerDrag.startX;
+    var dy = e.clientY - pointerDrag.startY;
+    var dist = Math.sqrt(dx * dx + dy * dy);
+    if (!pointerDrag.dragging) {
+      if (dist > TAP_MOVE_THRESHOLD) {
+        // User is scrolling — cancel long-press
+        clearPointerTimer();
+        var card = pointerDrag.card;
+        var pid = pointerDrag.pointerId;
+        pointerDrag.active = false;
+        pointerDrag.card = null;
+        pointerDrag.id = null;
+        pointerDrag.pointerId = null;
+        if (card && pid != null) {
+          try { card.releasePointerCapture(pid); } catch (err) { /* ignore */ }
+        }
+      }
+      return;
+    }
+    if (e.cancelable) e.preventDefault();
+    updatePointerGhost(e.clientX, e.clientY);
+  }
+
+  function onPointerUpDoc(e) {
+    if (pointerDrag.pointerId != null && e.pointerId !== pointerDrag.pointerId) return;
+    if (!pointerDrag.active && !pointerDrag.timer && !pointerDrag.dragging) return;
+    var wasDragging = pointerDrag.dragging;
+    endPointerDrag(e.clientX, e.clientY, false);
+    if (!wasDragging) {
+      // short tap handled by click
+    }
+  }
+
+  document.addEventListener('pointermove', onPointerMoveDoc, { passive: false });
+  document.addEventListener('pointerup', onPointerUpDoc);
+  document.addEventListener('pointercancel', function (e) {
+    if (pointerDrag.pointerId != null && e.pointerId !== pointerDrag.pointerId) return;
+    endPointerDrag(e.clientX, e.clientY, true);
+  });
+
+  function bindPointerCardDrag(card) {
+    // On coarse pointers, disable native HTML5 DnD (unreliable on mobile)
+    if (isMobileLayout()) card.setAttribute('draggable', 'false');
+    card.addEventListener('pointerdown', function (e) {
+      if (e.button != null && e.button !== 0) return;
+      // Mouse keeps HTML5 DnD; touch/pen use long-press drag
+      if (e.pointerType === 'mouse') return;
+      if (e.target.closest('[data-toggle], [data-copy], [data-delete], [data-move], .task-card__actions')) return;
+
+      clearPointerTimer();
+      pointerDrag.active = true;
+      pointerDrag.dragging = false;
+      pointerDrag.moved = false;
+      pointerDrag.pointerId = e.pointerId;
+      pointerDrag.id = card.getAttribute('data-id');
+      pointerDrag.card = card;
+      pointerDrag.startX = e.clientX;
+      pointerDrag.startY = e.clientY;
+      try { card.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+
+      pointerDrag.timer = setTimeout(function () {
+        pointerDrag.timer = null;
+        beginPointerDrag();
+        updatePointerGhost(pointerDrag.startX, pointerDrag.startY);
+      }, LONG_PRESS_MS);
+    });
+  }
+
+  // ── Day swipe (day view) ───────────────────────────────────
+  var daySwipe = { tracking: false, x0: 0, y0: 0 };
+
+  function bindDaySwipe() {
+    if (state.viewMode !== 'day') return;
+    var grid = elMain.querySelector('.week-grid--day');
+    if (!grid) return;
+    grid.addEventListener('touchstart', function (e) {
+      if (pointerDrag.dragging || pointerDrag.timer) return;
+      if (e.touches.length !== 1) return;
+      if (e.target.closest('.task-card')) return;
+      daySwipe.tracking = true;
+      daySwipe.x0 = e.touches[0].clientX;
+      daySwipe.y0 = e.touches[0].clientY;
+    }, { passive: true });
+    grid.addEventListener('touchend', function (e) {
+      if (!daySwipe.tracking) return;
+      daySwipe.tracking = false;
+      if (pointerDrag.dragging) return;
+      var t = e.changedTouches[0];
+      if (!t) return;
+      var dx = t.clientX - daySwipe.x0;
+      var dy = t.clientY - daySwipe.y0;
+      if (Math.abs(dx) < SWIPE_MIN_DX || Math.abs(dy) > SWIPE_MAX_DY) return;
+      if (Math.abs(dx) <= Math.abs(dy)) return;
+      changeWeek(dx < 0 ? 1 : -1);
+    }, { passive: true });
+  }
+
+  // ── Move sheet ─────────────────────────────────────────────
+  var elMoveModal = document.getElementById('move-modal');
+  var elMoveForm = document.getElementById('move-form');
+  var elMoveDate = document.getElementById('move-date');
+  var elMoveStart = document.getElementById('move-start');
+  var moveTaskId = null;
+
+  function openMoveSheet(id) {
+    var task = findTask(id);
+    if (!task) return;
+    var parsed = parseTaskId(id);
+    moveTaskId = id;
+    var date = parsed.occurrenceDate || task.date;
+    elMoveDate.value = date;
+    elMoveStart.value = minutesToTime(task.startMinutes);
+    elMoveModal.hidden = false;
+  }
+
+  function closeMoveSheet() {
+    if (elMoveModal) elMoveModal.hidden = true;
+    moveTaskId = null;
   }
 
   // ── Task CRUD ──────────────────────────────────────────────
@@ -2351,6 +2974,7 @@ button, input, select, textarea { font: inherit; }
   }
 
   function render() {
+    applyMobileViewPreference();
     syncCompactUI();
     syncMonthUI();
     if (state.viewMode === 'month') {
@@ -2454,7 +3078,10 @@ button, input, select, textarea { font: inherit; }
     state.scrollToDefaultHour = false;
     state.savedScrollTop = elMain.scrollTop;
     // Scale scroll so the same hour stays roughly in view after denser rows
-    var oldH = state.compact ? SLOT_HEIGHT : SLOT_HEIGHT_COMPACT;
+    var mobile = isNarrowScreen();
+    var oldH = state.compact
+      ? (mobile ? SLOT_HEIGHT_MOBILE : SLOT_HEIGHT)
+      : (mobile ? SLOT_HEIGHT_MOBILE_COMPACT : SLOT_HEIGHT_COMPACT);
     var newH = getSlotHeight();
     if (oldH > 0) {
       state.savedScrollTop = Math.round(elMain.scrollTop * (newH / oldH));
@@ -2661,6 +3288,85 @@ button, input, select, textarea { font: inherit; }
     wireCalendarOnce();
     render();
   }
+
+  // ── Mobile header menu + move sheet + auto day view ──
+  var elBtnMore = document.getElementById('btn-more');
+  var elHeaderPanel = document.getElementById('header-actions-panel');
+  var elHeaderBackdrop = document.getElementById('header-menu-backdrop');
+
+  function closeHeaderMenu() {
+    if (elHeaderPanel) elHeaderPanel.classList.remove('is-open');
+    if (elBtnMore) elBtnMore.setAttribute('aria-expanded', 'false');
+    if (elHeaderBackdrop) {
+      elHeaderBackdrop.classList.remove('is-open');
+      elHeaderBackdrop.hidden = true;
+    }
+  }
+  function toggleHeaderMenu() {
+    if (!elHeaderPanel) return;
+    var open = !elHeaderPanel.classList.contains('is-open');
+    elHeaderPanel.classList.toggle('is-open', open);
+    if (elBtnMore) elBtnMore.setAttribute('aria-expanded', open ? 'true' : 'false');
+    if (elHeaderBackdrop) {
+      elHeaderBackdrop.classList.toggle('is-open', open);
+      elHeaderBackdrop.hidden = !open;
+    }
+  }
+  if (elBtnMore) {
+    elBtnMore.addEventListener('click', function (e) {
+      e.stopPropagation();
+      toggleHeaderMenu();
+    });
+  }
+  if (elHeaderBackdrop) {
+    elHeaderBackdrop.addEventListener('click', closeHeaderMenu);
+  }
+  if (elHeaderPanel) {
+    elHeaderPanel.addEventListener('click', function (e) {
+      // close after choosing an action button
+      if (e.target.closest('button')) closeHeaderMenu();
+    });
+  }
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') closeHeaderMenu();
+  });
+
+  if (elMoveModal) {
+    document.getElementById('move-modal-close').addEventListener('click', closeMoveSheet);
+    document.getElementById('move-modal-cancel').addEventListener('click', closeMoveSheet);
+    elMoveModal.addEventListener('click', function (e) {
+      if (e.target === elMoveModal) closeMoveSheet();
+    });
+    elMoveForm.addEventListener('submit', function (e) {
+      e.preventDefault();
+      if (!moveTaskId) return;
+      var date = elMoveDate.value;
+      var start = timeToMinutes(elMoveStart.value);
+      if (!date || start == null || isNaN(start)) return;
+      moveTask(moveTaskId, date, snapMinutes(start));
+      closeMoveSheet();
+      state.scrollToDefaultHour = false;
+      state.savedScrollTop = elMain.scrollTop;
+      render();
+    });
+  }
+
+  var lastNarrow = isNarrowScreen();
+  applyMobileViewPreference();
+  window.addEventListener('resize', function () {
+    var narrow = isNarrowScreen();
+    if (narrow !== lastNarrow) {
+      lastNarrow = narrow;
+      if (narrow) applyMobileViewPreference();
+      document.documentElement.style.setProperty('--slot-h', getSlotHeight() + 'px');
+      if (state.viewMode !== 'month') {
+        state.scrollToDefaultHour = false;
+        state.savedScrollTop = elMain.scrollTop;
+        render();
+      }
+    }
+    closeHeaderMenu();
+  });
 
   function showLogin() {
     window.__goalsAuthed = false;
