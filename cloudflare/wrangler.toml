@@ -1,0 +1,19 @@
+name = "mygoals-api"
+main = "src/index.js"
+compatibility_date = "2026-09-01"
+
+# After: wrangler d1 create mygoals
+# paste the database_id below (replace REPLACE_ME).
+[[d1_databases]]
+binding = "DB"
+database_name = "mygoals"
+database_id = "aa39971b-8b39-4703-8a89-bab3b38b9b70"
+migrations_dir = "migrations"
+
+# Non-secret defaults (override in dashboard or [vars] as needed).
+# Secrets MUST be set via: wrangler secret put <NAME>
+#   TELEGRAM_BOT_TOKEN
+#   SESSION_SECRET
+[vars]
+TELEGRAM_BOT_USERNAME = "mygoals_bot"
+CORS_ORIGINS = "https://vgametikok.github.io"

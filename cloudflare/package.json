@@ -1,0 +1,21 @@
+{
+  "name": "mygoals-api",
+  "version": "1.0.0",
+  "private": true,
+  "description": "MYGOALS API on Cloudflare Workers + D1 (Telegram auth, calendar sync)",
+  "main": "src/index.js",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "d1:create": "wrangler d1 create mygoals",
+    "d1:migrate:local": "wrangler d1 migrations apply mygoals --local",
+    "d1:migrate:remote": "wrangler d1 migrations apply mygoals --remote",
+    "check": "node --check src/index.js && node --check src/db.js && node --check src/auth.js && node --check src/telegram.js"
+  },
+  "devDependencies": {
+    "wrangler": "^3.114.3"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
