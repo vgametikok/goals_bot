@@ -619,10 +619,42 @@ button, input, select, textarea { font: inherit; }
 }
 .login-card { text-align: center; }
 .login-card .btn--telegram { width: 100%; justify-content: center; }
+
+.login-screen {
+  min-height: 100vh; display: flex; align-items: center; justify-content: center;
+  padding: 24px; background: linear-gradient(160deg, #f3eefc 0%, #e8f2fb 50%, #f7f8fb 100%);
+}
+.login-screen[hidden] { display: none !important; }
+.login-card {
+  width: min(400px, 100%); background: #fff; border-radius: 20px;
+  padding: 36px 28px 28px; box-shadow: 0 18px 50px rgba(31,41,55,0.1);
+  text-align: center;
+}
+.login-card .btn--telegram {
+  width: 100%; justify-content: center; margin-top: 8px;
+  background: #2AABEE; color: #fff; border: none; border-radius: 12px;
+  padding: 14px 18px; font-weight: 700; font-size: 1rem;
+  display: inline-flex; align-items: center; gap: 8px; cursor: pointer;
+}
+.login-card .btn--telegram:hover { filter: brightness(1.05); }
+.login-hint { margin-top: 14px; font-size: 0.8rem; color: #6b7280; }
+.app[hidden] { display: none !important; }
+
 </style>
 </head>
 <body>
-<div class="app">
+
+<div class="login-screen" id="login-screen">
+  <div class="login-card">
+    <img class="login-logo" src="mygoals-logo.png" alt="MYGOALS" width="560" height="315" />
+    <button type="button" class="btn btn--telegram" id="btn-telegram-login">
+      <span aria-hidden="true">✈️</span> Войти через Telegram
+    </button>
+    <p class="login-hint">Бот: @mygoals_bot</p>
+  </div>
+</div>
+
+<div class="app" id="app-root" hidden>
   <header class="app-header">
     <div class="app-header__top">
       <nav class="tabs" id="tabs" aria-label="Категории"></nav>
@@ -2762,6 +2794,7 @@ button, input, select, textarea { font: inherit; }
       lastName: user.lastName || user.last_name || ''
     });
     refreshAuthUI();
+  if (typeof showAppLoggedIn === "function") showAppLoggedIn(!!(typeof readAuthUser === "function" && readAuthUser()));
     closeLoginModal();
     return fetchCalendarAndApply();
   }
@@ -2847,6 +2880,30 @@ button, input, select, textarea { font: inherit; }
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape' && elLoginModal && !elLoginModal.hidden) closeLoginModal();
   });
+
+
+  var elLoginScreen = document.getElementById('login-screen');
+  var elAppRoot = document.getElementById('app-root') || document.querySelector('.app');
+  var elBtnTelegramLogin = document.getElementById('btn-telegram-login');
+  function showAppLoggedIn(on) {
+    if (elLoginScreen) elLoginScreen.hidden = !!on;
+    if (elAppRoot) elAppRoot.hidden = !on;
+  }
+  // wrap refreshAuthUI if exists
+  if (typeof refreshAuthUI === 'function') {
+    var _refreshAuthUI = refreshAuthUI;
+    refreshAuthUI = function () {
+      _refreshAuthUI();
+      var u = (typeof readAuthUser === 'function') ? readAuthUser() : null;
+      showAppLoggedIn(!!u);
+    };
+  }
+  if (elBtnTelegramLogin) {
+    elBtnTelegramLogin.addEventListener('click', function () {
+      if (typeof openLoginModal === 'function') openLoginModal();
+      else if (elBtnLogin) elBtnLogin.click();
+    });
+  }
 
   // ── Boot ───────────────────────────────────────────────────
   initFormSelects();
