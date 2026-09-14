@@ -10,10 +10,20 @@ database_name = "mygoals"
 database_id = "aa39971b-8b39-4703-8a89-bab3b38b9b70"
 migrations_dir = "migrations"
 
+# Daily D1 JSON backups (separate from albums-media — NEVER bind albums buckets here)
+[[r2_buckets]]
+binding = "BACKUPS"
+bucket_name = "mygoals-backups"
+
+# Daily backup at 03:00 UTC
+[triggers]
+crons = ["0 3 * * *"]
+
 # Non-secret defaults (override in dashboard or [vars] as needed).
 # Secrets MUST be set via: wrangler secret put <NAME>
 #   TELEGRAM_BOT_TOKEN
 #   SESSION_SECRET
+#   BACKUP_SECRET   (for POST /api/internal/backup)
 [vars]
 TELEGRAM_BOT_USERNAME = "mygoals_bot"
 CORS_ORIGINS = "https://vgametikok.github.io"

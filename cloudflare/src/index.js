@@ -1,5 +1,5 @@
 /**
- * MYGOALS Cloudflare Worker — API router (D1 + Telegram webhook).
+ * MYGOALS Cloudflare Worker — API router (D1 + Telegram webhook + daily R2 backups).
  */
 
 import {
@@ -19,6 +19,7 @@ import {
   publicUser
 } from './db.js';
 import { verifyTelegramWidgetAuth, handleTelegramUpdate } from './telegram.js';
+import { runBackup } from './backup.js';
 
 function parseCorsOrigins(env) {
   const defaults = ['https://vgametikok.github.io', 'http://localhost:3000'];
@@ -36,7 +37,7 @@ function corsHeaders(req, env) {
   const headers = {
     'Access-Control-Allow-Credentials': 'true',
     'Access-Control-Allow-Methods': 'GET, POST, PUT, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Backup-Secret',
     'Access-Control-Max-Age': '86400'
   };
   if (origin && allowed.includes(origin)) {
@@ -101,7 +102,18 @@ async function handleRequest(req, env) {
 
   // ── Health ──────────────────────────────────────────────────────────────
   if (method === 'GET' && path === '/api/health') {
-    return json({ ok: true });
+    return json({ ok: true, backups: !!env.BACKUPS });
+  }
+
+  // ── Internal: manual backup (gated by X-Backup-Secret) ──────────────────
+  if (method === 'POST' && path === '/api/internal/backup') {
+    const secret = env.BACKUP_SECRET;
+    const provided = req.headers.get('X-Backup-Secret') || '';
+    if (!secret || provided !== secret) {
+      return json({ error: 'unauthorized' }, 401);
+    }
+    const result = await runBackup(env);
+    return json(result, result.ok ? 200 : 500);
   }
 
   // ── Me ──────────────────────────────────────────────────────────────────
@@ -224,5 +236,14 @@ export default {
       const res = json({ error: 'internal' }, 500);
       return withCors(res, request, env);
     }
+  },
+
+  async scheduled(event, env, ctx) {
+    console.log('[cron] backup triggered', event.cron || '', event.scheduledTime || '');
+    ctx.waitUntil(
+      runBackup(env).then((r) => {
+        if (!r.ok) console.error('[cron] backup failed', r.error);
+      })
+    );
   }
 };
