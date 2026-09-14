@@ -525,6 +525,29 @@ button, input, select, textarea { font: inherit; }
   flex: none;
 }
 .month-popover__footer .btn { width: 100%; }
+
+.btn--login {
+  background: #2AABEE; color: #fff; border: none;
+  box-shadow: var(--shadow);
+}
+.btn--login:hover { filter: brightness(1.05); }
+.btn--logout {
+  background: var(--surface); border: 1px solid var(--line);
+  color: var(--text); box-shadow: var(--shadow);
+}
+.user-chip {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 6px 10px; border-radius: 999px;
+  background: #eef8ff; border: 1px solid #b6e0f5;
+  font-size: 0.88rem; font-weight: 600; color: #0b6e99;
+}
+.login-modal .modal-card { max-width: 420px; }
+.login-modal .tg-box {
+  display: flex; flex-direction: column; align-items: center; gap: 12px;
+  padding: 8px 0 4px;
+}
+.login-modal .hint { font-size: 0.85rem; color: var(--muted); text-align: center; margin: 0; }
+.login-modal .hint a { color: #2AABEE; font-weight: 600; }
 </style>
 </head>
 <body>
@@ -540,6 +563,9 @@ button, input, select, textarea { font: inherit; }
           <span class="compact-ico" aria-hidden="true"><span></span><span></span><span></span></span>
           Компактно
         </button>
+        <span class="user-chip" id="user-chip" hidden></span>
+        <button type="button" class="btn btn--login" id="btn-login">Войти</button>
+        <button type="button" class="btn btn--logout" id="btn-logout" hidden>Выйти</button>
         <button type="button" class="btn btn--settings" id="btn-settings">⚙ Настройки</button>
       </div>
     </div>
@@ -560,7 +586,21 @@ button, input, select, textarea { font: inherit; }
 
 <!-- Task modal -->
 <div class="modal-backdrop" id="task-modal" hidden>
-  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="task-modal-title">
+  
+<div class="modal login-modal" id="login-modal" hidden>
+  <div class="modal-backdrop" data-close-login></div>
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="login-title">
+    <h2 id="login-title">Вход через Telegram</h2>
+    <p class="hint">Авторизация через бота <a href="https://t.me/mygoals_bot" target="_blank" rel="noopener">@mygoals_bot</a>. Нажмите кнопку ниже и подтвердите в Telegram.</p>
+    <div class="tg-box" id="tg-login-widget"></div>
+    <p class="hint">Если кнопка Telegram не появилась: в <a href="https://t.me/BotFather" target="_blank" rel="noopener">@BotFather</a> выполните <code>/setdomain</code> → бот <code>mygoals_bot</code> → домен <code>vgametikok.github.io</code>.</p>
+    <div class="modal-actions">
+      <button type="button" class="btn btn--ghost" data-close-login>Закрыть</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" role="dialog" aria-modal="true" aria-labelledby="task-modal-title">
     <header class="modal__header">
       <h2 id="task-modal-title">Новая задача</h2>
       <button type="button" class="icon-btn" id="task-modal-close" aria-label="Закрыть">×</button>
@@ -2394,6 +2434,89 @@ button, input, select, textarea { font: inherit; }
     var open = elMain && elMain.querySelector('.month-cell.is-open');
     if (pop && open) positionMonthPopover(pop, open);
   });
+
+
+  // ── Telegram login (Login Widget → localStorage; needs BotFather /setdomain) ──
+  var AUTH_KEY = 'goals-telegram-user-v1';
+  var elBtnLogin = document.getElementById('btn-login');
+  var elBtnLogout = document.getElementById('btn-logout');
+  var elUserChip = document.getElementById('user-chip');
+  var elLoginModal = document.getElementById('login-modal');
+  var elTgBox = document.getElementById('tg-login-widget');
+
+  function readAuthUser() {
+    try {
+      var raw = localStorage.getItem(AUTH_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) { return null; }
+  }
+  function writeAuthUser(user) {
+    if (!user) localStorage.removeItem(AUTH_KEY);
+    else localStorage.setItem(AUTH_KEY, JSON.stringify(user));
+  }
+  function refreshAuthUI() {
+    var user = readAuthUser();
+    if (user) {
+      var label = user.first_name || '';
+      if (user.last_name) label += (label ? ' ' : '') + user.last_name;
+      if (!label && user.username) label = '@' + user.username;
+      if (!label) label = 'Telegram';
+      elUserChip.textContent = label;
+      elUserChip.hidden = false;
+      elBtnLogin.hidden = true;
+      elBtnLogout.hidden = false;
+    } else {
+      elUserChip.hidden = true;
+      elBtnLogin.hidden = false;
+      elBtnLogout.hidden = true;
+    }
+  }
+  function closeLoginModal() {
+    if (elLoginModal) elLoginModal.hidden = true;
+  }
+  function openLoginModal() {
+    elLoginModal.hidden = false;
+    // (re)inject Telegram Login Widget
+    elTgBox.innerHTML = '';
+    var s = document.createElement('script');
+    s.async = true;
+    s.src = 'https://telegram.org/js/telegram-widget.js?22';
+    s.setAttribute('data-telegram-login', 'mygoals_bot');
+    s.setAttribute('data-size', 'large');
+    s.setAttribute('data-radius', '10');
+    s.setAttribute('data-request-access', 'write');
+    s.setAttribute('data-onauth', 'onTelegramAuth(user)');
+    elTgBox.appendChild(s);
+  }
+  window.onTelegramAuth = function (user) {
+    // Widget signs data with bot token; for static Pages we store identity for UI/tests.
+    writeAuthUser({
+      id: user.id,
+      first_name: user.first_name,
+      last_name: user.last_name || '',
+      username: user.username || '',
+      photo_url: user.photo_url || '',
+      auth_date: user.auth_date,
+      hash: user.hash
+    });
+    closeLoginModal();
+    refreshAuthUI();
+  };
+  if (elBtnLogin) elBtnLogin.addEventListener('click', openLoginModal);
+  if (elBtnLogout) elBtnLogout.addEventListener('click', function () {
+    writeAuthUser(null);
+    refreshAuthUI();
+  });
+  if (elLoginModal) {
+    elLoginModal.addEventListener('click', function (e) {
+      if (e.target && e.target.hasAttribute('data-close-login')) closeLoginModal();
+    });
+  }
+  var _prevEsc = document.onkeydown;
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && elLoginModal && !elLoginModal.hidden) closeLoginModal();
+  });
+  refreshAuthUI();
 
   // ── Boot ───────────────────────────────────────────────────
   initFormSelects();
