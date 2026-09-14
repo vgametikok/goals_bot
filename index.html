@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Расписание — школьный календарь</title>
+<title>MYGOALS</title>
 <style>
 :root {
   color-scheme: light;
@@ -548,6 +548,66 @@ button, input, select, textarea { font: inherit; }
 }
 .login-modal .hint { font-size: 0.85rem; color: var(--muted); text-align: center; margin: 0; }
 .login-modal .hint a { color: #2AABEE; font-weight: 600; }
+
+.brand-wordmark {
+  margin: 0;
+  font-size: 1.85rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  background: linear-gradient(120deg, #7c5cbf 0%, #5b8def 55%, #3b82c4 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  line-height: 1.2;
+}
+.brand-wordmark--sm {
+  font-size: 1.45rem;
+  letter-spacing: 0.12em;
+  margin: 0 0 12px;
+  text-align: center;
+}
+.empty-state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 48px 24px;
+  color: var(--muted);
+  gap: 12px;
+  min-height: 280px;
+}
+.empty-state__title {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 650;
+  color: var(--text);
+}
+.empty-state__text {
+  margin: 0;
+  max-width: 420px;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+.empty-state .btn { margin-top: 8px; }
+.tab.tab--empty {
+  background: #f3f4f6;
+  color: var(--muted);
+  cursor: default;
+  font-weight: 500;
+  box-shadow: none;
+}
+.tab.tab--empty:hover { filter: none; transform: none; }
+
+.login-modal .modal-card { text-align: center; }
+.login-modal .brand-wordmark { margin-bottom: 6px; }
+.login-modal .login-bot-hint {
+  margin: 0 0 14px; font-size: 0.8rem; color: var(--muted);
+}
+.login-modal .login-bot-hint a { color: #2AABEE; font-weight: 600; }
+
 </style>
 </head>
 <body>
@@ -584,31 +644,30 @@ button, input, select, textarea { font: inherit; }
   <main class="app-main" id="main"></main>
 </div>
 
-<!-- Task modal -->
-<div class="modal-backdrop" id="task-modal" hidden>
-  
+<!-- Login modal -->
 <div class="modal login-modal" id="login-modal" hidden>
   <div class="modal-backdrop" data-close-login></div>
   <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="login-title">
-    <h2 id="login-title">Вход через Telegram</h2>
-    <p class="hint">Авторизация через бота <a href="https://t.me/mygoals_bot" target="_blank" rel="noopener">@mygoals_bot</a>. Нажмите кнопку ниже и подтвердите в Telegram.</p>
+    <h1 class="brand-wordmark brand-wordmark--sm" id="login-title">MYGOALS</h1>
+    <p class="login-bot-hint">Бот: <a href="https://t.me/mygoals_bot" target="_blank" rel="noopener">@mygoals_bot</a></p>
     <div class="tg-box" id="tg-login-widget"></div>
     <p class="hint login-api-error" id="login-api-error" hidden style="color:#b91c1c;"></p>
-    <p class="hint">Если кнопка Telegram не появилась: в <a href="https://t.me/BotFather" target="_blank" rel="noopener">@BotFather</a> выполните <code>/setdomain</code> → бот <code>mygoals_bot</code> → домен <code>vgametikok.github.io</code>.</p>
     <div class="modal-actions">
       <button type="button" class="btn btn--ghost" data-close-login>Закрыть</button>
     </div>
   </div>
 </div>
 
-<div class="modal" role="dialog" aria-modal="true" aria-labelledby="task-modal-title">
+<!-- Task modal -->
+<div class="modal-backdrop" id="task-modal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="task-modal-title">
     <header class="modal__header">
       <h2 id="task-modal-title">Новая задача</h2>
       <button type="button" class="icon-btn" id="task-modal-close" aria-label="Закрыть">×</button>
     </header>
     <form class="modal__form" id="task-form">
       <label>Название
-        <input name="title" id="form-title" required placeholder="Например, Алгебра" autocomplete="off">
+        <input name="title" id="form-title" required placeholder="Например, Встреча" autocomplete="off">
       </label>
       <label>Короткое описание
         <input name="subtitle" placeholder="Кратко о задаче" autocomplete="off">
@@ -673,7 +732,7 @@ button, input, select, textarea { font: inherit; }
 
       <section class="settings-section" id="settings-categories">
         <h3>Категории</h3>
-        <p class="hint">Верхние вкладки. Можно менять название и цвет. Должна остаться хотя бы одна категория.</p>
+        <p class="hint">Верхние вкладки. Добавьте категории сами. Можно менять название и цвет. При удалении должна остаться хотя бы одна.</p>
         <div class="manage-list" id="cat-list"></div>
         <div class="manage-add">
           <input type="text" id="cat-new-name" placeholder="Новая категория" maxlength="40" autocomplete="off">
@@ -684,7 +743,7 @@ button, input, select, textarea { font: inherit; }
 
       <section class="settings-section" id="settings-badges">
         <h3>Метки</h3>
-        <p class="hint">Метки на карточках (Видеотеория, Онлайн и т.д.). Статус «выполнено» — отдельно, через галочку, здесь не редактируется.</p>
+        <p class="hint">Метки на карточках — создайте свои. Статус «выполнено» — отдельно, через галочку, здесь не редактируется.</p>
         <div class="manage-list" id="badge-list"></div>
         <div class="manage-add">
           <input type="text" id="badge-new-name" placeholder="Новая метка" maxlength="40" autocomplete="off">
@@ -692,7 +751,7 @@ button, input, select, textarea { font: inherit; }
         </div>
       </section>
 
-      <button type="button" class="btn btn--danger" id="btn-reset">Сбросить к примерам</button>
+      <button type="button" class="btn btn--danger" id="btn-reset">Очистить всё</button>
     </div>
   </div>
 </div>
@@ -740,20 +799,56 @@ button, input, select, textarea { font: inherit; }
     'Позвонить родителям', 'Поздравить друга', 'Записаться на стрижку', 'Проверить счета', 'Планирование бюджета'
   ];
 
-  var DEFAULT_CATEGORIES = [
-    { id: 'school', label: 'Школьная программа', color: '#7c5cbf', bg: '#f3eefc', border: '#c4b0ef', soft: '#ebe3f8' },
-    { id: 'tutors', label: 'Репетиторы', color: '#3d9b6e', bg: '#e8f6ef', border: '#9dd4b8', soft: '#dff3e8' },
-    { id: 'extracurricular', label: 'Внеурочные', color: '#d97706', bg: '#fff4e6', border: '#f0c78a', soft: '#ffedd5' },
-    { id: 'personal', label: 'Личные', color: '#3b82c4', bg: '#e8f2fb', border: '#9ec3e8', soft: '#dbeafe' }
-  ];
+  var DEFAULT_CALENDAR = { categories: [], badges: [], tasks: [], compact: false, viewMode: 'week' };
+  var DEFAULT_CATEGORIES = DEFAULT_CALENDAR.categories;
+  var DEFAULT_BADGES = DEFAULT_CALENDAR.badges;
+  var FALLBACK_CAT = { id: '_none', label: 'Без категории', color: '#7c5cbf', bg: '#f3eefc', border: '#c4b0ef', soft: '#ebe3f8' };
 
-  var DEFAULT_BADGES = [
-    { id: 'videotheory', label: 'Видеотеория', bg: '#ede9fe', color: '#6d28d9' },
-    { id: 'online', label: 'Онлайн', bg: '#dcfce7', color: '#15803d' },
-    { id: 'recording', label: 'В записи', bg: '#dbeafe', color: '#1d4ed8' },
-    { id: 'planned', label: 'В планах', bg: '#fef3c7', color: '#b45309' },
-    { id: 'assignments', label: 'Задания', bg: '#fce7f3', color: '#be185d' }
-  ];
+
+  var LEGACY_DEMO_CAT_IDS = ['school', 'tutors', 'extracurricular', 'personal'];
+  var LEGACY_DEMO_BADGE_IDS = ['videotheory', 'online', 'recording', 'planned', 'assignments'];
+
+  function isLegacyDemoOnly(parsed) {
+    if (!parsed || typeof parsed !== 'object') return false;
+    var cats = Array.isArray(parsed.categories) ? parsed.categories : [];
+    var badges = Array.isArray(parsed.badges) ? parsed.badges : [];
+    var tasks = Array.isArray(parsed.tasks) ? parsed.tasks : [];
+
+    function catsAreLegacy() {
+      if (cats.length !== LEGACY_DEMO_CAT_IDS.length) return false;
+      var catSet = {};
+      cats.forEach(function (c) { if (c && c.id) catSet[c.id] = true; });
+      for (var i = 0; i < LEGACY_DEMO_CAT_IDS.length; i++) {
+        if (!catSet[LEGACY_DEMO_CAT_IDS[i]]) return false;
+      }
+      return true;
+    }
+    function badgesAreLegacyOrEmpty() {
+      if (!badges.length) return true;
+      return badges.every(function (b) {
+        return b && LEGACY_DEMO_BADGE_IDS.indexOf(b.id) !== -1;
+      });
+    }
+
+    // Completely empty
+    if (!tasks.length && !cats.length && !badges.length) return true;
+
+    // Unused install: only stock school categories/badges, no real tasks
+    if (!tasks.length) {
+      return catsAreLegacy() && badgesAreLegacyOrEmpty();
+    }
+
+    // Only seed-* demo lessons + stock categories/badges
+    var allSeed = tasks.every(function (t) {
+      return t && typeof t.id === 'string' && t.id.indexOf('seed-') === 0;
+    });
+    if (!allSeed) return false;
+    if (cats.length && !catsAreLegacy()) return false;
+    if (!badgesAreLegacyOrEmpty()) return false;
+    return true;
+  }
+
+
 
   var COMPLETED_BADGE = { id: 'completed', label: 'выполнено', bg: '#e5e7eb', color: '#6b7280' };
 
@@ -937,29 +1032,7 @@ button, input, select, textarea { font: inherit; }
       .replace(/"/g, '&quot;');
   }
 
-  // ── Seed data ──────────────────────────────────────────────
-  function createSeedTasks(reference) {
-    var mon = startOfWeek(reference || new Date());
-    function d(offset) { return toISODate(addDays(mon, offset)); }
-    return [
-      { id: 'seed-1', title: 'Алгебра', subtitle: 'Квадратные уравнения', category: 'school', date: d(0), startMinutes: 8 * 60, endMinutes: 8 * 60 + 45, badges: ['videotheory'], completed: true, comment: 'Повторить формулы дискриминанта.' },
-      { id: 'seed-2', title: 'Русский язык', subtitle: 'Причастия и деепричастия', category: 'school', date: d(0), startMinutes: 9 * 60, endMinutes: 9 * 60 + 45, badges: ['assignments'], completed: false, comment: '' },
-      { id: 'seed-3', title: 'История', subtitle: 'Россия в XIX веке', category: 'school', date: d(0), startMinutes: 11 * 60, endMinutes: 11 * 60 + 45, badges: ['planned'], completed: false, comment: '' },
-      { id: 'seed-4', title: 'Физика', subtitle: 'Законы Ньютона', category: 'school', date: d(1), startMinutes: 8 * 60 + 30, endMinutes: 9 * 60 + 15, badges: ['videotheory'], completed: false, comment: '' },
-      { id: 'seed-5', title: 'Английский', subtitle: 'Past Perfect', category: 'tutors', date: d(1), startMinutes: 10 * 60, endMinutes: 11 * 60, badges: ['online'], completed: false, comment: 'Zoom-ссылка в дневнике.' },
-      { id: 'seed-6', title: 'Химия', subtitle: 'Периодическая система', category: 'school', date: d(2), startMinutes: 9 * 60, endMinutes: 9 * 60 + 45, badges: ['assignments', 'planned'], completed: false, comment: '' },
-      { id: 'seed-7', title: 'Математика (репетитор)', subtitle: 'Подготовка к ОГЭ', category: 'tutors', date: d(2), startMinutes: 15 * 60, endMinutes: 16 * 60, badges: ['online', 'recording'], completed: false, comment: '' },
-      { id: 'seed-8', title: 'Литература', subtitle: '«Евгений Онегин»', category: 'school', date: d(3), startMinutes: 8 * 60, endMinutes: 8 * 60 + 45, badges: ['videotheory'], completed: true, comment: 'Глава 1–2 прочитаны.' },
-      { id: 'seed-9', title: 'Биология', subtitle: 'Клетка и органоиды', category: 'school', date: d(3), startMinutes: 10 * 60 + 15, endMinutes: 11 * 60, badges: ['assignments'], completed: false, comment: '' },
-      { id: 'seed-10', title: 'Робототехника', subtitle: 'Сборка датчика', category: 'extracurricular', date: d(3), startMinutes: 14 * 60, endMinutes: 15 * 60, badges: ['planned'], completed: false, comment: '' },
-      { id: 'seed-11', title: 'География', subtitle: 'Климатические пояса', category: 'school', date: d(4), startMinutes: 9 * 60, endMinutes: 9 * 60 + 45, badges: ['videotheory'], completed: false, comment: '' },
-      { id: 'seed-12', title: 'Обществознание', subtitle: 'Права человека', category: 'school', date: d(4), startMinutes: 11 * 60, endMinutes: 11 * 60 + 45, badges: ['assignments'], completed: false, comment: '' },
-      { id: 'seed-13', title: 'Шахматы', subtitle: 'Дебютные ловушки', category: 'extracurricular', date: d(5), startMinutes: 10 * 60, endMinutes: 11 * 60 + 30, badges: ['online'], completed: false, comment: '' },
-      { id: 'seed-14', title: 'Спортзал', subtitle: 'Кардио + силовые', category: 'personal', date: d(5), startMinutes: 14 * 60, endMinutes: 15 * 60, badges: ['planned'], completed: false, comment: '' },
-      { id: 'seed-15', title: 'Чтение', subtitle: 'Свободное время', category: 'personal', date: d(6), startMinutes: 11 * 60, endMinutes: 12 * 60, badges: ['planned'], completed: false, comment: 'Взять роман из библиотеки.' },
-      { id: 'seed-16', title: 'Информатика', subtitle: 'Алгоритмы сортировки', category: 'school', date: d(1), startMinutes: 13 * 60, endMinutes: 13 * 60 + 45, badges: ['recording', 'assignments'], completed: false, comment: '' }
-    ];
-  }
+  // Seed/demo tasks removed — new users start empty
 
   function normalizeTask(raw, categories, badges) {
     if (!raw) return null;
@@ -968,7 +1041,7 @@ button, input, select, textarea { font: inherit; }
     var badgeIds = {};
     badges.forEach(function (b) { badgeIds[b.id] = true; });
     var category = raw.category;
-    if (!catIds[category]) category = categories[0] ? categories[0].id : 'school';
+    if (!catIds[category]) category = categories[0] ? categories[0].id : (category || '');
     var completed = !!raw.completed;
     var list = Array.isArray(raw.badges) ? raw.badges.slice() : [];
     if (list.indexOf('completed') !== -1) {
@@ -1012,24 +1085,32 @@ button, input, select, textarea { font: inherit; }
 
   // ── Persistence ────────────────────────────────────────────
   function loadState() {
-    var categories = cloneDefaults(DEFAULT_CATEGORIES);
-    var badges = cloneDefaults(DEFAULT_BADGES);
-    var tasks = null;
+    var categories = [];
+    var badges = [];
+    var tasks = [];
     var compact = false;
     var viewMode = 'week';
+    var hadStored = false;
 
     try {
       var raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         var parsed = JSON.parse(raw);
         if (parsed && typeof parsed === 'object') {
-          if (Array.isArray(parsed.categories) && parsed.categories.length) {
+          hadStored = true;
+          if (isLegacyDemoOnly(parsed)) {
+            // Wipe pure demo seed so returning demo-only installs get a clean slate
+            try { localStorage.removeItem(STORAGE_KEY); } catch (e0) {}
+            try { localStorage.removeItem(LEGACY_TASKS_KEY); } catch (e1) {}
+            return { categories: [], badges: [], tasks: [], compact: false, viewMode: 'week' };
+          }
+          if (Array.isArray(parsed.categories)) {
             categories = parsed.categories.map(normalizeCategory).filter(Boolean);
           }
           if (Array.isArray(parsed.badges)) {
             badges = parsed.badges.map(normalizeBadge).filter(Boolean);
           }
-          if (Array.isArray(parsed.tasks) && parsed.tasks.length) {
+          if (Array.isArray(parsed.tasks)) {
             tasks = parsed.tasks;
           }
           if (typeof parsed.compact === 'boolean') {
@@ -1042,22 +1123,24 @@ button, input, select, textarea { font: inherit; }
       }
     } catch (e) { /* ignore */ }
 
-    if (!categories.length) categories = cloneDefaults(DEFAULT_CATEGORIES);
-    if (!badges.length) badges = cloneDefaults(DEFAULT_BADGES);
-
-    if (!tasks) {
+    if (!hadStored) {
       try {
         var legacy = localStorage.getItem(LEGACY_TASKS_KEY);
         if (legacy) {
           var legacyParsed = JSON.parse(legacy);
-          if (Array.isArray(legacyParsed) && legacyParsed.length) tasks = legacyParsed;
+          if (Array.isArray(legacyParsed) && legacyParsed.length) {
+            // Legacy v1 tasks without categories — keep tasks only if they look real (not seed-*)
+            var real = legacyParsed.filter(function (t) {
+              return t && !(typeof t.id === 'string' && t.id.indexOf('seed-') === 0);
+            });
+            if (real.length) tasks = real;
+            try { localStorage.removeItem(LEGACY_TASKS_KEY); } catch (e2) {}
+          }
         }
-      } catch (e2) { /* ignore */ }
+      } catch (e3) { /* ignore */ }
     }
 
-    if (!tasks || !tasks.length) tasks = createSeedTasks();
     tasks = tasks.map(function (t) { return normalizeTask(t, categories, badges); }).filter(Boolean);
-
     return { categories: categories, badges: badges, tasks: tasks, compact: compact, viewMode: viewMode };
   }
 
@@ -1112,13 +1195,16 @@ button, input, select, textarea { font: inherit; }
 
   function applyCalendarData(data) {
     var loaded = (function (parsed) {
-      var categories = cloneDefaults(DEFAULT_CATEGORIES);
-      var badges = cloneDefaults(DEFAULT_BADGES);
+      var categories = [];
+      var badges = [];
       var tasks = [];
       var compact = false;
       var viewMode = 'week';
       if (parsed && typeof parsed === 'object') {
-        if (Array.isArray(parsed.categories) && parsed.categories.length) {
+        if (isLegacyDemoOnly(parsed)) {
+          return { categories: [], badges: [], tasks: [], compact: false, viewMode: 'week' };
+        }
+        if (Array.isArray(parsed.categories)) {
           categories = parsed.categories.map(normalizeCategory).filter(Boolean);
         }
         if (Array.isArray(parsed.badges)) {
@@ -1130,9 +1216,6 @@ button, input, select, textarea { font: inherit; }
           viewMode = parsed.viewMode;
         }
       }
-      if (!categories.length) categories = cloneDefaults(DEFAULT_CATEGORIES);
-      if (!badges.length) badges = cloneDefaults(DEFAULT_BADGES);
-      if (!tasks.length) tasks = createSeedTasks();
       tasks = tasks.map(function (t) { return normalizeTask(t, categories, badges); }).filter(Boolean);
       return { categories: categories, badges: badges, tasks: tasks, compact: compact, viewMode: viewMode };
     })(data || {});
@@ -1140,7 +1223,7 @@ button, input, select, textarea { font: inherit; }
     state.categories = loaded.categories;
     state.badges = loaded.badges;
     state.compact = !!loaded.compact;
-    state.category = loaded.categories[0] ? loaded.categories[0].id : 'school';
+    state.category = loaded.categories[0] ? loaded.categories[0].id : null;
     state.viewMode = (loaded.viewMode === 'month' || loaded.viewMode === 'day') ? loaded.viewMode : 'week';
     state.previousScheduleMode = loaded.viewMode === 'day' ? 'day' : 'week';
     rebuildMaps();
@@ -1163,7 +1246,7 @@ button, input, select, textarea { font: inherit; }
     categories: loaded.categories,
     badges: loaded.badges,
     compact: !!loaded.compact,
-    category: loaded.categories[0] ? loaded.categories[0].id : 'school',
+    category: loaded.categories[0] ? loaded.categories[0].id : null,
     weekStart: startOfWeek(new Date()),
     viewMode: (loaded.viewMode === 'month' || loaded.viewMode === 'day') ? loaded.viewMode : 'week',
     previousScheduleMode: loaded.viewMode === 'day' ? 'day' : 'week',
@@ -1222,6 +1305,16 @@ button, input, select, textarea { font: inherit; }
   // ── Tabs ───────────────────────────────────────────────────
   function renderTabs() {
     elTabs.innerHTML = '';
+    if (!state.categories.length) {
+      var empty = document.createElement('button');
+      empty.type = 'button';
+      empty.className = 'tab tab--empty';
+      empty.textContent = 'Нет категорий';
+      empty.disabled = true;
+      elTabs.appendChild(empty);
+      state.category = null;
+      return;
+    }
     if (!state.categories.some(function (c) { return c.id === state.category; })) {
       state.category = state.categories[0] ? state.categories[0].id : null;
     }
@@ -1519,7 +1612,7 @@ button, input, select, textarea { font: inherit; }
   }
 
   function renderCard(task) {
-    var cat = catMap[task.category] || state.categories[0] || DEFAULT_CATEGORIES[0];
+    var cat = catMap[task.category] || state.categories[0] || FALLBACK_CAT;
     var slotH = getSlotHeight();
     var top = ((task.startMinutes - HOUR_START * 60) / 60) * slotH;
     var height = state.compact
@@ -1609,7 +1702,7 @@ button, input, select, textarea { font: inherit; }
       html += '<ul class="month-cell__tasks">';
       var shown = dayTasks.slice(0, 6);
       shown.forEach(function (task) {
-        var cat = catMap[task.category] || state.categories[0] || DEFAULT_CATEGORIES[0];
+        var cat = catMap[task.category] || state.categories[0] || FALLBACK_CAT;
         html += '<li class="month-cell__task' + (task.completed ? ' is-done' : '') + '"';
         html += ' style="border-left-color:' + cat.color + ';background:' + cat.bg + '"';
         html += ' title="' + esc(task.title) + '">' + esc(task.title) + '</li>';
@@ -1668,7 +1761,7 @@ button, input, select, textarea { font: inherit; }
       inner += '<p class="month-popover__empty">Нет задач</p>';
     } else {
       tasks.forEach(function (task) {
-        var cat = catMap[task.category] || state.categories[0] || DEFAULT_CATEGORIES[0];
+        var cat = catMap[task.category] || state.categories[0] || FALLBACK_CAT;
         inner += '<div class="month-popover__item' + (task.completed ? ' is-done' : '') + '"';
         inner += ' style="border-left-color:' + cat.color + ';background:' + cat.bg + '">';
         inner += '<span class="month-popover__time">' + minutesToTime(task.startMinutes) + '–' + minutesToTime(task.endMinutes) + '</span>';
@@ -1954,11 +2047,11 @@ button, input, select, textarea { font: inherit; }
     return copy;
   }
 
-  function resetToSeed() {
-    state.categories = cloneDefaults(DEFAULT_CATEGORIES);
-    state.badges = cloneDefaults(DEFAULT_BADGES);
-    state.tasks = createSeedTasks();
-    state.category = state.categories[0].id;
+  function resetToEmpty() {
+    state.categories = [];
+    state.badges = [];
+    state.tasks = [];
+    state.category = null;
     rebuildMaps();
     saveState();
     state.scrollToDefaultHour = true;
@@ -2063,6 +2156,7 @@ button, input, select, textarea { font: inherit; }
     var colors = deriveCategoryColors(color || '#7c5cbf');
     var cat = Object.assign({ id: uid('cat'), label: label }, colors);
     state.categories = state.categories.concat([cat]);
+    if (!state.category) state.category = cat.id;
     rebuildMaps();
     saveState();
     document.getElementById('cat-new-name').value = '';
@@ -2177,6 +2271,12 @@ button, input, select, textarea { font: inherit; }
   }
 
   function openNew(date, startMinutes) {
+    if (!state.categories.length) {
+      alert('Сначала добавьте категорию в Настройках.');
+      renderSettingsManagers();
+      elSettingsModal.hidden = false;
+      return;
+    }
     state.editingId = null;
     elModalTitle.textContent = 'Новая задача';
     elModalSubmit.textContent = 'Добавить';
@@ -2277,6 +2377,22 @@ button, input, select, textarea { font: inherit; }
       elBtnWeek.hidden = true;
     }
     renderTabs();
+    if (!state.categories.length) {
+      elMain.innerHTML =
+        '<div class="empty-state">' +
+          '<p class="empty-state__title">Пока пусто</p>' +
+          '<p class="empty-state__text">Добавьте категорию в Настройках, затем задачу кликом по сетке.</p>' +
+          '<button type="button" class="btn btn--primary" id="empty-open-settings">⚙ Настройки</button>' +
+        '</div>';
+      var btn = document.getElementById('empty-open-settings');
+      if (btn) {
+        btn.addEventListener('click', function () {
+          renderSettingsManagers();
+          elSettingsModal.hidden = false;
+        });
+      }
+      return;
+    }
     renderGrid();
   }
 
@@ -2368,8 +2484,8 @@ button, input, select, textarea { font: inherit; }
     if (e.target === elSettingsModal) closeSettings();
   });
   document.getElementById('btn-reset').addEventListener('click', function () {
-    if (confirm('Сбросить расписание, категории и метки к демо-данным?')) {
-      resetToSeed();
+    if (confirm('Очистить все задачи, категории и метки? Это нельзя отменить.')) {
+      resetToEmpty();
       closeSettings();
     }
   });
@@ -2618,10 +2734,8 @@ button, input, select, textarea { font: inherit; }
       })
       .then(function (cal) {
         applyCalendarData(cal || {});
-        // If empty server calendar, seed once and push
-        if (!cal || !Array.isArray(cal.tasks) || !cal.tasks.length) {
-          saveState();
-        }
+        // Persist normalized calendar (no demo seed)
+        saveState();
         state.scrollToDefaultHour = true;
         render();
       });
@@ -2704,7 +2818,7 @@ button, input, select, textarea { font: inherit; }
       state.categories = loaded.categories;
       state.badges = loaded.badges;
       state.compact = !!loaded.compact;
-      state.category = loaded.categories[0] ? loaded.categories[0].id : 'school';
+      state.category = loaded.categories[0] ? loaded.categories[0].id : null;
       state.viewMode = (loaded.viewMode === 'month' || loaded.viewMode === 'day') ? loaded.viewMode : 'week';
       rebuildMaps();
       refreshAuthUI();

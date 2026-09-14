@@ -7,19 +7,8 @@ const DATA_DIR = path.join(__dirname, '..', 'data');
 const DB_PATH = path.join(DATA_DIR, 'store.json');
 
 const DEFAULT_CALENDAR = {
-  categories: [
-    { id: 'school', label: 'Школьная программа', color: '#7c5cbf', bg: '#f3eefc', border: '#c4b0ef', soft: '#ebe3f8' },
-    { id: 'tutors', label: 'Репетиторы', color: '#3d9b6e', bg: '#e8f6ef', border: '#9dd4b8', soft: '#dff3e8' },
-    { id: 'extracurricular', label: 'Внеурочные', color: '#d97706', bg: '#fff4e6', border: '#f0c78a', soft: '#ffedd5' },
-    { id: 'personal', label: 'Личные', color: '#3b82c4', bg: '#e8f2fb', border: '#9ec3e8', soft: '#dbeafe' }
-  ],
-  badges: [
-    { id: 'videotheory', label: 'Видеотеория', bg: '#ede9fe', color: '#6d28d9' },
-    { id: 'online', label: 'Онлайн', bg: '#dcfce7', color: '#15803d' },
-    { id: 'recording', label: 'В записи', bg: '#dbeafe', color: '#1d4ed8' },
-    { id: 'planned', label: 'В планах', bg: '#fef3c7', color: '#b45309' },
-    { id: 'assignments', label: 'Задания', bg: '#fce7f3', color: '#be185d' }
-  ],
+  categories: [],
+  badges: [],
   tasks: [],
   compact: false,
   viewMode: 'week'
