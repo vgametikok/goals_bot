@@ -1,0 +1,2644 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Цели — расписание</title>
+<style>
+:root {
+  color-scheme: light;
+  --bg: #f7f8fb;
+  --surface: #ffffff;
+  --text: #1f2937;
+  --muted: #6b7280;
+  --line: #e8ebf2;
+  --shadow: 0 10px 30px rgba(31, 41, 55, 0.06);
+  --radius: 16px;
+  --radius-sm: 10px;
+  --slot-h: 144px;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  line-height: 1.4;
+  font-weight: 400;
+  color: var(--text);
+  background: var(--bg);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body { min-width: 320px; background: var(--bg); height: 100%; }
+button, input, select, textarea { font: inherit; }
+.app {
+  max-width: 1280px; margin: 0 auto; padding: 20px 24px 16px;
+  height: 100%; display: flex; flex-direction: column; min-height: 0;
+}
+.app-header { display: flex; flex-direction: column; gap: 18px; margin-bottom: 18px; flex: none; }
+.app-header__top { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.tabs { display: flex; flex-wrap: wrap; gap: 10px; }
+.tab {
+  border: none; border-radius: 999px; padding: 10px 18px;
+  font-weight: 600; font-size: 0.92rem; cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+}
+.tab:hover { filter: brightness(0.98); transform: translateY(-1px); }
+.tab.is-active { transform: translateY(-1px); }
+.app-header__week { display: flex; align-items: center; gap: 12px; }
+.week-title {
+  margin: 0; font-size: 1.55rem; font-weight: 700;
+  letter-spacing: -0.02em; min-width: 220px; text-align: center;
+}
+.nav-arrow {
+  width: 40px; height: 40px; border-radius: 12px;
+  border: 1px solid var(--line); background: var(--surface);
+  cursor: pointer; font-size: 1.4rem; line-height: 1;
+  color: var(--text); box-shadow: var(--shadow);
+}
+.nav-arrow:hover { background: #f3f4f6; }
+.btn {
+  border: none; border-radius: 12px; padding: 10px 16px;
+  font-weight: 600; cursor: pointer;
+  transition: background 0.15s ease, transform 0.15s ease, filter 0.15s ease;
+}
+.btn--settings {
+  background: var(--surface); border: 1px solid var(--line);
+  color: var(--text); box-shadow: var(--shadow);
+}
+.header-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.btn--compact {
+  background: var(--surface); border: 1px solid var(--line);
+  color: var(--text); box-shadow: var(--shadow);
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.btn--compact.is-active {
+  background: #efe8ff; border-color: #7c5cbf; color: #5b3d9a;
+  outline: 2px solid #c4b0ef;
+}
+.btn--compact .compact-ico {
+  display: inline-grid; gap: 2px; width: 14px; height: 12px;
+}
+.btn--compact .compact-ico span {
+  display: block; height: 3px; border-radius: 1px; background: currentColor; opacity: 0.85;
+}
+.app.is-compact { --slot-h: 96px; }
+.app.is-compact .task-card {
+  padding: 5px 8px 18px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(31, 41, 55, 0.07);
+}
+.app.is-compact .task-card__title { font-size: 0.8rem; line-height: 1.2; }
+.app.is-compact .task-card__subtitle {
+  margin-top: 2px; font-size: 0.7rem;
+}
+.app.is-compact .task-card__badges { display: none; }
+.app.is-compact .task-card__check {
+  width: 16px; height: 16px; border-radius: 4px; font-size: 0.65rem;
+}
+.app.is-compact .task-card__time {
+  right: 6px; bottom: 3px; font-size: 0.64rem;
+}
+.app.is-compact .task-card__actions { left: 4px; bottom: 2px; }
+.app.is-compact .task-card__action { width: 18px; height: 18px; font-size: 0.7rem; }
+.btn--ghost { background: transparent; color: var(--muted); border: 1px solid var(--line); }
+.btn--today { margin-left: 0; }
+.btn--primary { background: #7c5cbf; color: #fff; }
+.btn--primary:hover { filter: brightness(1.05); }
+.btn--danger { background: #fee2e2; color: #b91c1c; }
+.btn--danger:hover { background: #fecaca; }
+.btn--sm { padding: 6px 12px; font-size: 0.82rem; border-radius: 10px; }
+.app-main {
+  background: var(--surface); border-radius: 24px;
+  border: 1px solid var(--line); box-shadow: var(--shadow);
+  overflow: auto; padding: 8px; flex: 1; min-height: 0;
+}
+.week-grid { min-width: 920px; }
+.week-grid__header {
+  display: grid; grid-template-columns: 64px repeat(7, 1fr);
+  gap: 6px; position: sticky; top: 0; z-index: 3;
+  background: var(--surface); padding: 8px 8px 12px;
+}
+.week-grid__corner {
+  display: flex; align-items: flex-end; justify-content: center; padding-bottom: 8px;
+}
+.tz {
+  font-size: 0.72rem; font-weight: 700; color: var(--muted);
+  letter-spacing: 0.04em; background: #f3f4f6;
+  border-radius: 8px; padding: 4px 8px;
+}
+.week-grid__dayhead {
+  text-align: center; padding: 10px 8px;
+  border-radius: 14px; background: #f9fafb;
+}
+.week-grid__dayhead.is-today { background: #efe8ff; outline: 2px solid #c4b0ef; }
+.dow { display: block; font-size: 0.8rem; color: var(--muted); font-weight: 600; }
+.dom { display: block; font-size: 1.15rem; font-weight: 700; margin-top: 2px; }
+.week-grid__body {
+  display: grid; grid-template-columns: 64px 1fr;
+  gap: 6px; padding: 0 8px 12px;
+}
+.week-grid__times { position: relative; }
+.week-grid__hour { position: relative; color: var(--muted); font-size: 0.78rem; font-weight: 500; }
+.week-grid__hour span { position: absolute; top: -0.55em; right: 8px; }
+.week-grid__cols { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+.week-grid__col {
+  position: relative; border-radius: 14px;
+  background:
+    linear-gradient(to bottom, transparent calc(100% - 1px), #eef0f5 1px) 0 0 / 100% var(--slot-h);
+  background-color: #fbfcfe;
+  border: 1px dashed transparent; cursor: cell;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+.week-grid__col.is-drop { background-color: #f5f0ff; border-color: #c4b0ef; }
+.week-grid__slot { pointer-events: none; }
+.week-grid__ghost {
+  position: absolute; left: 4px; right: 4px; height: 3px;
+  border-radius: 2px; background: #7c5cbf; opacity: 0.7;
+  pointer-events: none; z-index: 2;
+}
+.task-card {
+  position: absolute; left: 4px; right: 4px;
+  border-radius: 12px; border-left: 4px solid;
+  padding: 8px 10px 22px;
+  box-shadow: 0 4px 14px rgba(31, 41, 55, 0.08);
+  cursor: grab; overflow: hidden; z-index: 1;
+  transition: transform 0.12s ease, box-shadow 0.12s ease, opacity 0.15s ease;
+  user-select: none; -webkit-user-select: none;
+}
+.task-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px rgba(31, 41, 55, 0.12);
+  z-index: 2;
+}
+.task-card:active { cursor: grabbing; }
+.task-card.is-done { opacity: 0.62; }
+.task-card.is-done .task-card__title,
+.task-card.is-done .task-card__subtitle {
+  color: #6b7280; text-decoration: line-through; text-decoration-thickness: 1px;
+}
+.task-card__head {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 6px;
+}
+.task-card__title { margin: 0; font-size: 0.92rem; font-weight: 700; line-height: 1.25; }
+.task-card__check {
+  flex: none; width: 20px; height: 20px; border-radius: 6px;
+  border: 1.5px solid #9ca3af; background: #fff; color: #15803d;
+  font-size: 0.75rem; line-height: 1; cursor: pointer;
+  display: grid; place-items: center; padding: 0;
+}
+.task-card__check.checked { background: #dcfce7; border-color: #22c55e; }
+.task-card__subtitle {
+  margin: 4px 0 0; font-size: 0.78rem; color: #4b5563;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.task-card__badges { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.badge {
+  display: inline-flex; align-items: center; border-radius: 999px;
+  padding: 2px 7px; font-size: 0.68rem; font-weight: 600; white-space: nowrap;
+}
+.task-card__time {
+  position: absolute; right: 8px; bottom: 6px;
+  font-size: 0.7rem; font-weight: 600; color: #6b7280;
+  display: inline-flex; align-items: center; gap: 4px;
+}
+.task-card__note {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 16px; height: 16px; font-size: 0.72rem; line-height: 1;
+  opacity: 0.9; flex: none;
+}
+.modal-backdrop {
+  position: fixed; inset: 0; background: rgba(17, 24, 39, 0.35);
+  display: grid; place-items: center; padding: 20px; z-index: 50;
+  backdrop-filter: blur(2px);
+}
+.modal-backdrop[hidden] { display: none; }
+.modal {
+  width: min(520px, 100%); background: #fff; border-radius: 20px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.18); overflow: hidden;
+  max-height: min(92vh, 900px); display: flex; flex-direction: column;
+}
+.modal--sm { width: min(420px, 100%); }
+.modal--lg { width: min(640px, 100%); }
+.modal__header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 18px 20px 8px; flex: none;
+}
+.modal__header h2 { margin: 0; font-size: 1.15rem; }
+.icon-btn {
+  width: 36px; height: 36px; border: none; border-radius: 10px;
+  background: #f3f4f6; font-size: 1.4rem; cursor: pointer; color: #4b5563;
+}
+.modal__form, .modal__body {
+  padding: 8px 20px 20px; display: flex; flex-direction: column; gap: 12px;
+  overflow: auto; flex: 1; min-height: 0;
+}
+.modal__form label {
+  display: flex; flex-direction: column; gap: 6px;
+  font-size: 0.85rem; font-weight: 600; color: #374151;
+}
+.modal__form input, .modal__form select, .modal__form textarea {
+  border: 1px solid var(--line); border-radius: var(--radius-sm);
+  padding: 10px 12px; background: #fafafa; font-weight: 500; color: var(--text);
+}
+.modal__form input:focus, .modal__form select:focus, .modal__form textarea:focus {
+  outline: 2px solid #c4b0ef; border-color: #7c5cbf; background: #fff;
+}
+.modal__row { display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 10px; }
+.modal__badges { border: none; margin: 0; padding: 0; }
+.modal__badges legend { font-size: 0.85rem; font-weight: 600; margin-bottom: 8px; }
+.modal__badge-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.badge-toggle {
+  border: none; border-radius: 999px; padding: 6px 12px;
+  font-size: 0.78rem; font-weight: 600; cursor: pointer;
+}
+.badge-toggle.active { outline: 2px solid currentColor; }
+.modal__check {
+  flex-direction: row !important; align-items: center;
+  gap: 8px !important; font-weight: 500 !important;
+}
+.modal__footer { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 4px; flex-wrap: wrap; }
+.modal__footer-left, .modal__footer-right { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.modal__footer-left { margin-right: auto; }
+.task-card__actions {
+  position: absolute; left: 4px; bottom: 4px; display: none; gap: 2px; z-index: 3;
+}
+.task-card:hover .task-card__time { opacity: 0; }
+.task-card:hover .task-card__actions { display: flex; }
+.task-card__action {
+  width: 22px; height: 22px; border: none; border-radius: 6px;
+  background: rgba(255,255,255,0.92); color: #4b5563; font-size: 0.72rem;
+  cursor: pointer; line-height: 1; padding: 0;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.12);
+}
+.task-card__action:hover { background: #fff; color: #1f2937; }
+.task-card__action--danger:hover { color: #b91c1c; background: #fee2e2; }
+.task-card__check { position: relative; z-index: 4; }
+.muted { color: var(--muted); margin: 0; }
+.settings-list { margin: 0; padding-left: 18px; color: #374151; }
+.settings-list li { margin-bottom: 6px; }
+.settings-section {
+  border: 1px solid var(--line); border-radius: 14px;
+  padding: 14px; background: #fafbfc;
+}
+.settings-section h3 {
+  margin: 0 0 6px; font-size: 0.98rem; font-weight: 700;
+}
+.settings-section .hint {
+  margin: 0 0 12px; font-size: 0.8rem; color: var(--muted);
+}
+.manage-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
+.manage-row {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  background: #fff; border: 1px solid var(--line); border-radius: 12px;
+  padding: 8px 10px;
+}
+.manage-row input[type="text"] {
+  flex: 1; min-width: 120px; border: 1px solid var(--line);
+  border-radius: 8px; padding: 7px 10px; background: #fafafa; font-weight: 500;
+}
+.manage-row input[type="color"] {
+  width: 36px; height: 32px; padding: 0; border: 1px solid var(--line);
+  border-radius: 8px; background: #fff; cursor: pointer;
+}
+.manage-row .swatch {
+  width: 14px; height: 14px; border-radius: 50%; flex: none;
+  box-shadow: 0 0 0 2px #fff, 0 0 0 3px var(--line);
+}
+.manage-add {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+}
+.manage-add input[type="text"] {
+  flex: 1; min-width: 140px; border: 1px solid var(--line);
+  border-radius: 8px; padding: 8px 10px; background: #fff; font-weight: 500;
+}
+.manage-add input[type="color"] {
+  width: 36px; height: 32px; padding: 0; border: 1px solid var(--line);
+  border-radius: 8px; background: #fff; cursor: pointer;
+}
+
+.week-grid__dayhead { cursor: pointer; transition: background 0.15s ease, transform 0.12s ease; }
+.week-grid__dayhead:hover { background: #efe8ff; transform: translateY(-1px); }
+.week-grid__dayhead.is-focus { background: #efe8ff; outline: 2px solid #7c5cbf; }
+.week-grid--day .week-grid__header { grid-template-columns: 64px 1fr; }
+.week-grid--day .week-grid__cols { grid-template-columns: 1fr; }
+.week-grid--day { min-width: 320px; }
+.nav-jump { display: flex; align-items: center; gap: 6px; margin-left: 4px; flex-wrap: wrap; }
+.nav-jump .btn { padding: 8px 12px; font-size: 0.88rem; }
+.btn--week { margin-left: 4px; }
+.repeat-block {
+  border: 1px solid var(--line); border-radius: 12px;
+  padding: 12px; background: #fafbfc; display: flex; flex-direction: column; gap: 10px;
+}
+.repeat-days { display: flex; flex-wrap: wrap; gap: 6px; }
+.repeat-day {
+  width: 40px; height: 36px; border-radius: 10px; border: 1px solid var(--line);
+  background: #fff; font-weight: 700; font-size: 0.78rem; cursor: pointer; color: #4b5563;
+}
+.repeat-day.is-on {
+  background: #efe8ff; border-color: #7c5cbf; color: #5b3d9a;
+  outline: 2px solid #c4b0ef;
+}
+.repeat-hint { margin: 0; font-size: 0.78rem; color: var(--muted); }
+.task-card.is-recurring .task-card__title::before {
+  content: '↻ ';
+  font-weight: 700;
+  color: #6b7280;
+}
+
+@media (max-width: 720px) {
+  .app { padding: 12px; }
+  .week-title { font-size: 1.2rem; min-width: 0; }
+  .modal__row { grid-template-columns: 1fr; }
+  .month-grid { min-width: 0; }
+}
+
+.app.is-month .app-main {
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+}
+.month-grid {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  min-width: 560px;
+}
+.month-grid__head {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+  padding: 8px 8px 6px;
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: var(--surface);
+}
+.month-grid__dow {
+  text-align: center;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--muted);
+  letter-spacing: 0.02em;
+  padding: 6px 4px;
+}
+.month-grid__body {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  grid-auto-rows: 1fr;
+  gap: 6px;
+  padding: 0 8px 8px;
+  flex: 1;
+  min-height: 520px;
+}
+.month-cell {
+  background: #fbfcfe;
+  border-radius: 14px;
+  padding: 8px 8px 6px;
+  min-height: 96px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  transition: background 0.12s ease, outline 0.12s ease, border-color 0.12s ease;
+}
+.month-cell:hover { background: #f5f0ff; }
+.month-cell.is-today {
+  background: #faf7ff;
+  outline: 2px solid #c4b0ef;
+}
+.month-cell.is-focus:not(.is-today) {
+  border-color: #c4b0ef;
+}
+.month-cell.is-other { opacity: 0.48; }
+.month-cell.is-open {
+  background: #efe8ff;
+  outline: 2px solid #7c5cbf;
+}
+.month-cell__date {
+  font-weight: 700;
+  font-size: 0.92rem;
+  line-height: 1;
+  flex: none;
+}
+.month-cell__tasks {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
+  min-height: 0;
+}
+.month-cell__task {
+  font-size: 0.7rem;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 2px 6px;
+  border-radius: 6px;
+  border-left: 3px solid;
+  background: rgba(255,255,255,0.72);
+}
+.month-cell__task.is-done {
+  opacity: 0.55;
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+}
+.month-cell__more {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--muted);
+  margin-top: auto;
+}
+.app.is-compact .month-cell { padding: 6px; min-height: 80px; }
+.app.is-compact .month-cell__task { font-size: 0.64rem; padding: 1px 5px; }
+
+.month-popover {
+  position: fixed;
+  z-index: 40;
+  width: min(340px, calc(100vw - 24px));
+  max-height: min(380px, 72vh);
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 18px 48px rgba(31, 41, 55, 0.18);
+  border: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.month-popover__head {
+  padding: 12px 14px 8px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  flex: none;
+}
+.month-popover__list {
+  overflow: auto;
+  padding: 0 10px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-height: 0;
+}
+.month-popover__item {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 7px 8px;
+  border-radius: 10px;
+  background: #f9fafb;
+  font-size: 0.82rem;
+  border-left: 3px solid #c4b0ef;
+}
+.month-popover__item.is-done .month-popover__title,
+.month-popover__item.is-done .month-popover__time {
+  opacity: 0.6;
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+}
+.month-popover__time {
+  flex: none;
+  font-weight: 600;
+  color: var(--muted);
+  font-size: 0.74rem;
+  white-space: nowrap;
+}
+.month-popover__title {
+  font-weight: 600;
+  line-height: 1.3;
+  min-width: 0;
+}
+.month-popover__empty {
+  color: var(--muted);
+  font-size: 0.85rem;
+  padding: 10px 8px;
+  margin: 0;
+}
+.month-popover__footer {
+  padding: 10px 12px 12px;
+  border-top: 1px solid var(--line);
+  flex: none;
+}
+.month-popover__footer .btn { width: 100%; }
+
+/* ── Login gate ── */
+.login-screen {
+  position: fixed; inset: 0; z-index: 1000;
+  display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(160deg, #f7f8fb 0%, #efe8ff 45%, #f7f8fb 100%);
+  padding: 24px;
+}
+.login-screen[hidden] { display: none !important; }
+.login-card {
+  width: 100%; max-width: 420px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  box-shadow: var(--shadow);
+  padding: 36px 32px 28px;
+  text-align: center;
+}
+.login-card h1 {
+  margin: 0 0 8px; font-size: 1.65rem; font-weight: 750;
+  letter-spacing: -0.02em;
+}
+.login-card .login-sub {
+  margin: 0 0 24px; color: var(--muted); font-size: 0.95rem;
+}
+.login-card .btn--telegram {
+  width: 100%; background: #2AABEE; color: #fff;
+  padding: 14px 18px; font-size: 1rem; border-radius: 14px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+}
+.login-card .btn--telegram:hover { filter: brightness(1.05); }
+.login-card .btn--telegram:disabled { opacity: 0.65; cursor: wait; }
+.login-status {
+  margin-top: 18px; min-height: 1.4em;
+  font-size: 0.9rem; color: var(--muted);
+}
+.login-status.is-error { color: #b91c1c; }
+.login-status a { color: #2AABEE; font-weight: 600; }
+.login-hint { margin-top: 14px; font-size: 0.8rem; color: var(--muted); }
+.app[hidden] { display: none !important; }
+.btn--logout {
+  background: var(--surface); border: 1px solid var(--line);
+  color: var(--muted); box-shadow: var(--shadow);
+}
+.user-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 0.85rem; color: var(--muted);
+  padding: 6px 10px; border-radius: 999px;
+  background: #f3f4f6; border: 1px solid var(--line);
+}
+.user-chip strong { color: var(--text); font-weight: 600; }
+.save-indicator {
+  font-size: 0.75rem; color: var(--muted); min-width: 4.5em; text-align: right;
+}
+.save-indicator.is-saving { color: #7c5cbf; }
+.save-indicator.is-error { color: #b91c1c; }
+
+</style>
+</head>
+<body>
+
+<div class="login-screen" id="login-screen">
+  <div class="login-card">
+    <h1>Цели</h1>
+    <p class="login-sub">Школьный календарь и расписание. Войдите через Telegram, чтобы синхронизировать данные.</p>
+    <button type="button" class="btn btn--telegram" id="btn-telegram-login">
+      <span aria-hidden="true">✈️</span> Войти через Telegram
+    </button>
+    <div class="login-status" id="login-status" aria-live="polite"></div>
+    <p class="login-hint">Бот: @mygoals_bot · для тестов</p>
+  </div>
+</div>
+
+<div class="app" id="app-root" hidden>
+  <header class="app-header">
+    <div class="app-header__top">
+      <nav class="tabs" id="tabs" aria-label="Категории"></nav>
+      <div class="header-actions">
+        <button type="button" class="btn btn--compact" id="btn-month" aria-pressed="false" title="Месяц">
+          Месяц
+        </button>
+        <button type="button" class="btn btn--compact" id="btn-compact" aria-pressed="false" title="Компактный вид">
+          <span class="compact-ico" aria-hidden="true"><span></span><span></span><span></span></span>
+          Компактно
+        </button>
+        <span class="user-chip" id="user-chip" hidden><strong id="user-name"></strong></span>
+        <span class="save-indicator" id="save-indicator" aria-live="polite"></span>
+        <button type="button" class="btn btn--logout" id="btn-logout" title="Выйти">Выйти</button>
+        <button type="button" class="btn btn--settings" id="btn-settings">⚙ Настройки</button>
+      </div>
+    </div>
+    <div class="app-header__week">
+      <button type="button" class="nav-arrow" id="btn-prev" aria-label="Назад">‹</button>
+      <h1 class="week-title" id="week-title"></h1>
+      <button type="button" class="nav-arrow" id="btn-next" aria-label="Вперёд">›</button>
+      <button type="button" class="btn btn--ghost btn--week" id="btn-week" hidden>Неделя</button>
+      <div class="nav-jump" role="group" aria-label="Быстрый переход">
+        <button type="button" class="btn btn--ghost" id="btn-yesterday">Вчера</button>
+        <button type="button" class="btn btn--ghost btn--today" id="btn-today">Сегодня</button>
+        <button type="button" class="btn btn--ghost" id="btn-tomorrow">Завтра</button>
+      </div>
+    </div>
+  </header>
+  <main class="app-main" id="main"></main>
+</div>
+
+<!-- Task modal -->
+<div class="modal-backdrop" id="task-modal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="task-modal-title">
+    <header class="modal__header">
+      <h2 id="task-modal-title">Новая задача</h2>
+      <button type="button" class="icon-btn" id="task-modal-close" aria-label="Закрыть">×</button>
+    </header>
+    <form class="modal__form" id="task-form">
+      <label>Название
+        <input name="title" id="form-title" required placeholder="Например, Алгебра" autocomplete="off">
+      </label>
+      <label>Короткое описание
+        <input name="subtitle" placeholder="Кратко о задаче" autocomplete="off">
+      </label>
+      <label>Категория
+        <select name="category" id="form-category"></select>
+      </label>
+      <div class="modal__row">
+        <label>Дата<input type="date" name="date" required></label>
+        <label>Начало<input type="time" name="start" required value="09:00"></label>
+        <label>Конец<input type="time" name="end" required value="09:45"></label>
+      </div>
+      <fieldset class="modal__badges">
+        <legend>Метки</legend>
+        <div class="modal__badge-list" id="form-badges"></div>
+      </fieldset>
+      <div class="repeat-block">
+        <label class="modal__check">
+          <input type="checkbox" name="repeatWeekly" id="form-repeat-weekly">
+          Повторять каждую неделю
+        </label>
+        <div class="repeat-days" id="form-repeat-days" aria-label="Дни повторения"></div>
+        <p class="repeat-hint">Выберите дни недели — задача появится в эти дни каждую неделю.</p>
+      </div>
+      <label>Комментарии и заметки
+        <textarea name="comment" rows="3" placeholder="Комментарии и заметки…"></textarea>
+      </label>
+      <label class="modal__check">
+        <input type="checkbox" name="completed" id="form-completed">
+        выполнено
+      </label>
+      <footer class="modal__footer">
+        <div class="modal__footer-left">
+          <button type="button" class="btn btn--danger btn--sm" id="task-modal-delete" hidden>Удалить</button>
+          <button type="button" class="btn btn--ghost btn--sm" id="task-modal-copy" hidden>Скопировать</button>
+        </div>
+        <div class="modal__footer-right">
+          <button type="button" class="btn btn--ghost" id="task-modal-cancel">Отмена</button>
+          <button type="submit" class="btn btn--primary" id="task-modal-submit">Добавить</button>
+        </div>
+      </footer>
+    </form>
+  </div>
+</div>
+
+<!-- Settings modal -->
+<div class="modal-backdrop" id="settings-modal" hidden>
+  <div class="modal modal--lg" role="dialog" aria-modal="true">
+    <header class="modal__header">
+      <h2>Настройки</h2>
+      <button type="button" class="icon-btn" id="settings-close" aria-label="Закрыть">×</button>
+    </header>
+    <div class="modal__body">
+      <p class="muted">Данные сохраняются на сервере для вашего аккаунта Telegram. Часовой пояс сетки: МСК. Сетка: 00:00–24:00, по умолчанию открывается около 08:00 — прокрутите колёсиком вверх/вниз.</p>
+      <ul class="settings-list">
+        <li>Перетаскивайте карточки на другой день или время</li>
+        <li>Клик по пустой ячейке — новая задача</li>
+        <li>Клик по карточке — редактирование; в форме — Удалить / Скопировать</li>
+        <li>Галочка на карточке — статус «выполнено»</li>
+        <li>При удалении категории задачи автоматически переносятся в первую оставшуюся</li>
+      </ul>
+
+      <section class="settings-section" id="settings-categories">
+        <h3>Категории</h3>
+        <p class="hint">Верхние вкладки. Можно менять название и цвет. Должна остаться хотя бы одна категория.</p>
+        <div class="manage-list" id="cat-list"></div>
+        <div class="manage-add">
+          <input type="text" id="cat-new-name" placeholder="Новая категория" maxlength="40" autocomplete="off">
+          <input type="color" id="cat-new-color" value="#7c5cbf" title="Цвет">
+          <button type="button" class="btn btn--primary btn--sm" id="cat-add">Добавить</button>
+        </div>
+      </section>
+
+      <section class="settings-section" id="settings-badges">
+        <h3>Метки</h3>
+        <p class="hint">Метки на карточках (Видеотеория, Онлайн и т.д.). Статус «выполнено» — отдельно, через галочку, здесь не редактируется.</p>
+        <div class="manage-list" id="badge-list"></div>
+        <div class="manage-add">
+          <input type="text" id="badge-new-name" placeholder="Новая метка" maxlength="40" autocomplete="off">
+          <button type="button" class="btn btn--primary btn--sm" id="badge-add">Добавить</button>
+        </div>
+      </section>
+
+      <button type="button" class="btn btn--danger" id="btn-reset">Сбросить к примерам</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  // ── Constants ──────────────────────────────────────────────
+  var STORAGE_KEY = 'school-schedule-data-v2';
+  var LEGACY_TASKS_KEY = 'school-schedule-tasks-v1';
+  var HOUR_START = 0;
+  var HOUR_END = 24;
+  var SLOT_HEIGHT = 144;
+  var SLOT_HEIGHT_COMPACT = 96;
+  var COMPACT_CARD_HEIGHT = 56;
+  var DEFAULT_SCROLL_HOUR = 8;
+  var DAY_NAMES = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+  var MONTHS_GENITIVE = [
+    'января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
+    'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'
+  ];
+  var MONTHS_NOMINATIVE = [
+    'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
+    'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'
+  ];
+
+  /* Recurrence model:
+   * Tasks with repeatWeekly=true are series templates stored once.
+   * They expand onto each visible day whose weekday (0=Mon..6=Sun) is in repeatDays.
+   * Display instance id = templateId + '@' + YYYY-MM-DD.
+   * Per-occurrence completion via completedByDate[iso]; edit/delete/drag update the series.
+   * Moving a recurring instance updates series time (and date anchor); weekday of drop is added to repeatDays if missing.
+   */
+  var TITLE_EXAMPLES = [
+    'Совещание с командой', 'Звонок клиенту', 'Отчёт за неделю', 'Планерка', 'Собеседование',
+    'Проверка почты', 'Презентация проекта', 'Встреча с руководителем', 'Дедлайн по задаче', 'Код-ревью',
+    'Обучение / вебинар', 'Отправка счёта', 'Созвон с подрядчиком', 'Подготовка брифа', 'Синк по статусу',
+    'Закупка продуктов', 'Уборка квартиры', 'Стирка', 'Глажка', 'Мытьё посуды',
+    'Вынести мусор', 'Полить цветы', 'Приготовить ужин', 'Забрать посылку', 'Оплата ЖКХ',
+    'Визит в банк', 'Запись к врачу', 'Аптека', 'Химчистка', 'Заправка автомобиля',
+    'Прогулка с собакой', 'Тренировка', 'Йога', 'Поход в спортзал', 'Вечерний кросс',
+    'Купить подарок', 'Заказать доставку', 'Ремонт мелочи дома', 'Сменить постельное', 'Протереть пыль',
+    'Разбор шкафа', 'Сходить на рынок', 'Забрать ребёнка из школы', 'Домашнее задание с ребёнком', 'Семейный ужин',
+    'Позвонить родителям', 'Поздравить друга', 'Записаться на стрижку', 'Проверить счета', 'Планирование бюджета'
+  ];
+
+  var DEFAULT_CATEGORIES = [
+    { id: 'school', label: 'Школьная программа', color: '#7c5cbf', bg: '#f3eefc', border: '#c4b0ef', soft: '#ebe3f8' },
+    { id: 'tutors', label: 'Репетиторы', color: '#3d9b6e', bg: '#e8f6ef', border: '#9dd4b8', soft: '#dff3e8' },
+    { id: 'extracurricular', label: 'Внеурочные', color: '#d97706', bg: '#fff4e6', border: '#f0c78a', soft: '#ffedd5' },
+    { id: 'personal', label: 'Личные', color: '#3b82c4', bg: '#e8f2fb', border: '#9ec3e8', soft: '#dbeafe' }
+  ];
+
+  var DEFAULT_BADGES = [
+    { id: 'videotheory', label: 'Видеотеория', bg: '#ede9fe', color: '#6d28d9' },
+    { id: 'online', label: 'Онлайн', bg: '#dcfce7', color: '#15803d' },
+    { id: 'recording', label: 'В записи', bg: '#dbeafe', color: '#1d4ed8' },
+    { id: 'planned', label: 'В планах', bg: '#fef3c7', color: '#b45309' },
+    { id: 'assignments', label: 'Задания', bg: '#fce7f3', color: '#be185d' }
+  ];
+
+  var COMPLETED_BADGE = { id: 'completed', label: 'выполнено', bg: '#e5e7eb', color: '#6b7280' };
+
+  var BADGE_PALETTE = [
+    { bg: '#ede9fe', color: '#6d28d9' },
+    { bg: '#dcfce7', color: '#15803d' },
+    { bg: '#dbeafe', color: '#1d4ed8' },
+    { bg: '#fef3c7', color: '#b45309' },
+    { bg: '#fce7f3', color: '#be185d' },
+    { bg: '#ffedd5', color: '#c2410c' },
+    { bg: '#e0e7ff', color: '#4338ca' },
+    { bg: '#f3e8ff', color: '#7e22ce' },
+    { bg: '#ecfccb', color: '#4d7c0f' },
+    { bg: '#e0f2fe', color: '#0369a1' }
+  ];
+
+  // ── Color helpers ──────────────────────────────────────────
+  function hexToRgb(hex) {
+    var h = String(hex || '').replace('#', '');
+    if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+    if (h.length !== 6) return { r: 124, g: 92, b: 191 };
+    return {
+      r: parseInt(h.slice(0, 2), 16),
+      g: parseInt(h.slice(2, 4), 16),
+      b: parseInt(h.slice(4, 6), 16)
+    };
+  }
+
+  function rgbToHex(r, g, b) {
+    function c(n) {
+      var v = Math.max(0, Math.min(255, Math.round(n)));
+      return v.toString(16).padStart(2, '0');
+    }
+    return '#' + c(r) + c(g) + c(b);
+  }
+
+  function mixRgb(a, b, t) {
+    return {
+      r: a.r * (1 - t) + b.r * t,
+      g: a.g * (1 - t) + b.g * t,
+      b: a.b * (1 - t) + b.b * t
+    };
+  }
+
+  function deriveCategoryColors(accent) {
+    var c = hexToRgb(accent);
+    var white = { r: 255, g: 255, b: 255 };
+    var bg = mixRgb(c, white, 0.88);
+    var border = mixRgb(c, white, 0.55);
+    var soft = mixRgb(c, white, 0.82);
+    return {
+      color: accent.indexOf('#') === 0 ? accent : '#' + accent,
+      bg: rgbToHex(bg.r, bg.g, bg.b),
+      border: rgbToHex(border.r, border.g, border.b),
+      soft: rgbToHex(soft.r, soft.g, soft.b)
+    };
+  }
+
+  function normalizeCategory(raw) {
+    if (!raw || !raw.id) return null;
+    var colors = deriveCategoryColors(raw.color || '#7c5cbf');
+    return {
+      id: String(raw.id),
+      label: String(raw.label || 'Категория').trim() || 'Категория',
+      color: colors.color,
+      bg: raw.bg || colors.bg,
+      border: raw.border || colors.border,
+      soft: raw.soft || colors.soft
+    };
+  }
+
+  function normalizeBadge(raw, index) {
+    if (!raw || !raw.id || raw.id === 'completed') return null;
+    var pal = BADGE_PALETTE[(index || 0) % BADGE_PALETTE.length];
+    var label = String(raw.label || 'Метка').trim() || 'Метка';
+    // Legacy completed wording must never appear as a user badge label
+    if (/^прошло$/i.test(label)) label = 'выполнено';
+    return {
+      id: String(raw.id),
+      label: label,
+      bg: raw.bg || pal.bg,
+      color: raw.color || pal.color
+    };
+  }
+
+  function cloneDefaults(list) {
+    return list.map(function (item) { return Object.assign({}, item); });
+  }
+
+  // ── Date helpers ───────────────────────────────────────────
+  function startOfWeek(date) {
+    var d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    var day = d.getDay();
+    var diff = day === 0 ? -6 : 1 - day;
+    d.setDate(d.getDate() + diff);
+    return d;
+  }
+
+  function addDays(date, days) {
+    var d = new Date(date);
+    d.setDate(d.getDate() + days);
+    return d;
+  }
+
+  function toISODate(date) {
+    var y = date.getFullYear();
+    var m = String(date.getMonth() + 1).padStart(2, '0');
+    var day = String(date.getDate()).padStart(2, '0');
+    return y + '-' + m + '-' + day;
+  }
+
+  function formatWeekRange(weekStart) {
+    var end = addDays(weekStart, 6);
+    var d1 = weekStart.getDate();
+    var d2 = end.getDate();
+    var m1 = weekStart.getMonth();
+    var m2 = end.getMonth();
+    if (m1 === m2) return d1 + ' – ' + d2 + ' ' + MONTHS_GENITIVE[m1];
+    return d1 + ' ' + MONTHS_GENITIVE[m1] + ' – ' + d2 + ' ' + MONTHS_GENITIVE[m2];
+  }
+
+  function addMonths(date, months) {
+    var src = new Date(date);
+    var d = new Date(src.getFullYear(), src.getMonth(), 1);
+    d.setMonth(d.getMonth() + months);
+    var last = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+    d.setDate(Math.min(src.getDate(), last));
+    d.setHours(12, 0, 0, 0);
+    return d;
+  }
+
+  function formatMonthTitle(dateOrISO) {
+    var d = typeof dateOrISO === 'string'
+      ? new Date(dateOrISO + 'T12:00:00')
+      : new Date(dateOrISO);
+    return MONTHS_NOMINATIVE[d.getMonth()] + ' ' + d.getFullYear();
+  }
+
+  function daysForVisibleMonth(focusISO) {
+    var focus = new Date(focusISO + 'T12:00:00');
+    var year = focus.getFullYear();
+    var month = focus.getMonth();
+    var first = new Date(year, month, 1);
+    var last = new Date(year, month + 1, 0);
+    var cur = startOfWeek(first);
+    var days = [];
+    while (true) {
+      days.push(new Date(cur));
+      cur = addDays(cur, 1);
+      if (days.length % 7 === 0 && cur > last) break;
+    }
+    return { days: days, year: year, month: month };
+  }
+
+  function minutesToTime(minutes) {
+    var h = Math.floor(minutes / 60);
+    var m = minutes % 60;
+    return h + ':' + String(m).padStart(2, '0');
+  }
+
+  function timeToMinutes(time) {
+    var parts = time.split(':');
+    return Number(parts[0]) * 60 + (Number(parts[1]) || 0);
+  }
+
+  function uid(prefix) {
+    return (prefix || 'id') + '-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
+  }
+
+  function snapMinutes(raw) {
+    var clamped = Math.max(HOUR_START * 60, Math.min((HOUR_END - 1) * 60 + 45, raw));
+    return Math.round(clamped / 15) * 15;
+  }
+
+  function esc(s) {
+    return String(s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  // ── Seed data ──────────────────────────────────────────────
+  function createSeedTasks(reference) {
+    var mon = startOfWeek(reference || new Date());
+    function d(offset) { return toISODate(addDays(mon, offset)); }
+    return [
+      { id: 'seed-1', title: 'Алгебра', subtitle: 'Квадратные уравнения', category: 'school', date: d(0), startMinutes: 8 * 60, endMinutes: 8 * 60 + 45, badges: ['videotheory'], completed: true, comment: 'Повторить формулы дискриминанта.' },
+      { id: 'seed-2', title: 'Русский язык', subtitle: 'Причастия и деепричастия', category: 'school', date: d(0), startMinutes: 9 * 60, endMinutes: 9 * 60 + 45, badges: ['assignments'], completed: false, comment: '' },
+      { id: 'seed-3', title: 'История', subtitle: 'Россия в XIX веке', category: 'school', date: d(0), startMinutes: 11 * 60, endMinutes: 11 * 60 + 45, badges: ['planned'], completed: false, comment: '' },
+      { id: 'seed-4', title: 'Физика', subtitle: 'Законы Ньютона', category: 'school', date: d(1), startMinutes: 8 * 60 + 30, endMinutes: 9 * 60 + 15, badges: ['videotheory'], completed: false, comment: '' },
+      { id: 'seed-5', title: 'Английский', subtitle: 'Past Perfect', category: 'tutors', date: d(1), startMinutes: 10 * 60, endMinutes: 11 * 60, badges: ['online'], completed: false, comment: 'Zoom-ссылка в дневнике.' },
+      { id: 'seed-6', title: 'Химия', subtitle: 'Периодическая система', category: 'school', date: d(2), startMinutes: 9 * 60, endMinutes: 9 * 60 + 45, badges: ['assignments', 'planned'], completed: false, comment: '' },
+      { id: 'seed-7', title: 'Математика (репетитор)', subtitle: 'Подготовка к ОГЭ', category: 'tutors', date: d(2), startMinutes: 15 * 60, endMinutes: 16 * 60, badges: ['online', 'recording'], completed: false, comment: '' },
+      { id: 'seed-8', title: 'Литература', subtitle: '«Евгений Онегин»', category: 'school', date: d(3), startMinutes: 8 * 60, endMinutes: 8 * 60 + 45, badges: ['videotheory'], completed: true, comment: 'Глава 1–2 прочитаны.' },
+      { id: 'seed-9', title: 'Биология', subtitle: 'Клетка и органоиды', category: 'school', date: d(3), startMinutes: 10 * 60 + 15, endMinutes: 11 * 60, badges: ['assignments'], completed: false, comment: '' },
+      { id: 'seed-10', title: 'Робототехника', subtitle: 'Сборка датчика', category: 'extracurricular', date: d(3), startMinutes: 14 * 60, endMinutes: 15 * 60, badges: ['planned'], completed: false, comment: '' },
+      { id: 'seed-11', title: 'География', subtitle: 'Климатические пояса', category: 'school', date: d(4), startMinutes: 9 * 60, endMinutes: 9 * 60 + 45, badges: ['videotheory'], completed: false, comment: '' },
+      { id: 'seed-12', title: 'Обществознание', subtitle: 'Права человека', category: 'school', date: d(4), startMinutes: 11 * 60, endMinutes: 11 * 60 + 45, badges: ['assignments'], completed: false, comment: '' },
+      { id: 'seed-13', title: 'Шахматы', subtitle: 'Дебютные ловушки', category: 'extracurricular', date: d(5), startMinutes: 10 * 60, endMinutes: 11 * 60 + 30, badges: ['online'], completed: false, comment: '' },
+      { id: 'seed-14', title: 'Спортзал', subtitle: 'Кардио + силовые', category: 'personal', date: d(5), startMinutes: 14 * 60, endMinutes: 15 * 60, badges: ['planned'], completed: false, comment: '' },
+      { id: 'seed-15', title: 'Чтение', subtitle: 'Свободное время', category: 'personal', date: d(6), startMinutes: 11 * 60, endMinutes: 12 * 60, badges: ['planned'], completed: false, comment: 'Взять роман из библиотеки.' },
+      { id: 'seed-16', title: 'Информатика', subtitle: 'Алгоритмы сортировки', category: 'school', date: d(1), startMinutes: 13 * 60, endMinutes: 13 * 60 + 45, badges: ['recording', 'assignments'], completed: false, comment: '' }
+    ];
+  }
+
+  function normalizeTask(raw, categories, badges) {
+    if (!raw) return null;
+    var catIds = {};
+    categories.forEach(function (c) { catIds[c.id] = true; });
+    var badgeIds = {};
+    badges.forEach(function (b) { badgeIds[b.id] = true; });
+    var category = raw.category;
+    if (!catIds[category]) category = categories[0] ? categories[0].id : 'school';
+    var completed = !!raw.completed;
+    var list = Array.isArray(raw.badges) ? raw.badges.slice() : [];
+    if (list.indexOf('completed') !== -1) {
+      completed = true;
+      list = list.filter(function (b) { return b !== 'completed'; });
+    }
+    list = list.filter(function (b) { return badgeIds[b]; });
+    var repeatDays = Array.isArray(raw.repeatDays)
+      ? raw.repeatDays.map(function (n) { return Number(n); }).filter(function (n) { return n >= 0 && n <= 6; })
+      : [];
+    // unique sorted
+    var seenDays = {};
+    repeatDays = repeatDays.filter(function (n) {
+      if (seenDays[n]) return false;
+      seenDays[n] = true;
+      return true;
+    }).sort(function (a, b) { return a - b; });
+    var repeatWeekly = !!raw.repeatWeekly && repeatDays.length > 0;
+    var completedByDate = {};
+    if (raw.completedByDate && typeof raw.completedByDate === 'object') {
+      Object.keys(raw.completedByDate).forEach(function (k) {
+        if (raw.completedByDate[k]) completedByDate[k] = true;
+      });
+    }
+    return {
+      id: String(raw.id || uid('task')),
+      title: String(raw.title || 'Без названия'),
+      subtitle: String(raw.subtitle || ''),
+      category: category,
+      date: String(raw.date || toISODate(new Date())),
+      startMinutes: Number(raw.startMinutes) || 0,
+      endMinutes: Number(raw.endMinutes) || (Number(raw.startMinutes) || 0) + 45,
+      badges: list,
+      completed: completed,
+      comment: String(raw.comment || ''),
+      repeatWeekly: repeatWeekly,
+      repeatDays: repeatWeekly ? repeatDays : [],
+      completedByDate: completedByDate
+    };
+  }
+
+  // ── Persistence (API) ──────────────────────────────────────
+  function loadState(fromApi) {
+    var categories = cloneDefaults(DEFAULT_CATEGORIES);
+    var badges = cloneDefaults(DEFAULT_BADGES);
+    var tasks = null;
+    var compact = false;
+    var viewMode = 'week';
+    var parsed = fromApi && typeof fromApi === 'object' ? fromApi : null;
+    if (parsed) {
+      if (Array.isArray(parsed.categories) && parsed.categories.length) {
+        categories = parsed.categories.map(normalizeCategory).filter(Boolean);
+      }
+      if (Array.isArray(parsed.badges)) {
+        badges = parsed.badges.map(normalizeBadge).filter(Boolean);
+      }
+      if (Array.isArray(parsed.tasks)) {
+        tasks = parsed.tasks;
+      }
+      if (typeof parsed.compact === 'boolean') {
+        compact = parsed.compact;
+      }
+      if (parsed.viewMode === 'week' || parsed.viewMode === 'day' || parsed.viewMode === 'month') {
+        viewMode = parsed.viewMode;
+      }
+    }
+    if (!categories.length) categories = cloneDefaults(DEFAULT_CATEGORIES);
+    if (!badges.length) badges = cloneDefaults(DEFAULT_BADGES);
+    if (!tasks) tasks = [];
+    if (!tasks.length && parsed && parsed._seedIfEmpty) {
+      tasks = createSeedTasks();
+    }
+    tasks = tasks.map(function (t) { return normalizeTask(t, categories, badges); }).filter(Boolean);
+    return { categories: categories, badges: badges, tasks: tasks, compact: compact, viewMode: viewMode };
+  }
+
+  var saveTimer = null;
+  var saveInFlight = false;
+  var saveQueued = false;
+
+  function setSaveIndicator(text, cls) {
+    var el = document.getElementById('save-indicator');
+    if (!el) return;
+    el.textContent = text || '';
+    el.className = 'save-indicator' + (cls ? ' ' + cls : '');
+  }
+
+  function saveState() {
+    if (!window.__goalsAuthed) return;
+    if (saveTimer) clearTimeout(saveTimer);
+    setSaveIndicator('…', 'is-saving');
+    saveTimer = setTimeout(flushSave, 450);
+  }
+
+  function flushSave() {
+    saveTimer = null;
+    if (saveInFlight) { saveQueued = true; return; }
+    saveInFlight = true;
+    setSaveIndicator('Сохранение…', 'is-saving');
+    var payload = {
+      categories: state.categories,
+      badges: state.badges,
+      tasks: state.tasks,
+      compact: !!state.compact,
+      viewMode: state.viewMode === 'month' ? 'month' : (state.viewMode === 'day' ? 'day' : 'week')
+    };
+    fetch('/api/calendar', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify(payload)
+    }).then(function (r) {
+      if (!r.ok) throw new Error('save ' + r.status);
+      setSaveIndicator('Сохранено');
+      setTimeout(function () { setSaveIndicator(''); }, 1200);
+    }).catch(function () {
+      setSaveIndicator('Ошибка', 'is-error');
+    }).finally(function () {
+      saveInFlight = false;
+      if (saveQueued) { saveQueued = false; flushSave(); }
+    });
+  }
+
+  function rebuildMaps() {
+    catMap = {};
+    state.categories.forEach(function (c) { catMap[c.id] = c; });
+    badgeMap = {};
+    state.badges.forEach(function (b) { badgeMap[b.id] = b; });
+    badgeMap[COMPLETED_BADGE.id] = COMPLETED_BADGE;
+  }
+
+  // ── State ──────────────────────────────────────────────────
+  var catMap = {};
+  var badgeMap = {};
+  var state = {
+    tasks: [],
+    categories: cloneDefaults(DEFAULT_CATEGORIES),
+    badges: cloneDefaults(DEFAULT_BADGES),
+    compact: false,
+    category: 'school',
+    weekStart: startOfWeek(new Date()),
+    viewMode: 'week',
+    previousScheduleMode: 'week',
+    focusDate: toISODate(new Date()),
+    editingId: null,
+    formBadges: [],
+    formRepeatDays: [],
+    dragOver: null,
+    dragId: null,
+    scrollToDefaultHour: true,
+    savedScrollTop: null
+  };
+  rebuildMaps();
+
+  function applyCalendarData(data) {
+    var loaded = loadState(data || {});
+    state.tasks = loaded.tasks;
+    state.categories = loaded.categories;
+    state.badges = loaded.badges;
+    state.compact = !!loaded.compact;
+    state.category = loaded.categories[0] ? loaded.categories[0].id : 'school';
+    state.viewMode = (loaded.viewMode === 'month' || loaded.viewMode === 'day') ? loaded.viewMode : 'week';
+    state.previousScheduleMode = loaded.viewMode === 'day' ? 'day' : 'week';
+    rebuildMaps();
+  }
+
+  // ── DOM refs ───────────────────────────────────────────────
+  var elTabs = document.getElementById('tabs');
+  var elWeekTitle = document.getElementById('week-title');
+  var elMain = document.getElementById('main');
+  var elTaskModal = document.getElementById('task-modal');
+  var elSettingsModal = document.getElementById('settings-modal');
+  var elForm = document.getElementById('task-form');
+  var elFormBadges = document.getElementById('form-badges');
+  var elFormCategory = document.getElementById('form-category');
+  var elModalTitle = document.getElementById('task-modal-title');
+  var elModalSubmit = document.getElementById('task-modal-submit');
+  var elModalDelete = document.getElementById('task-modal-delete');
+  var elModalCopy = document.getElementById('task-modal-copy');
+  var elCompleted = document.getElementById('form-completed');
+  var elCatList = document.getElementById('cat-list');
+  var elBadgeList = document.getElementById('badge-list');
+  var elBtnWeek = document.getElementById('btn-week');
+  var elRepeatWeekly = document.getElementById('form-repeat-weekly');
+  var elRepeatDays = document.getElementById('form-repeat-days');
+  var elFormTitle = document.getElementById('form-title');
+  var elBtnCompact = document.getElementById('btn-compact');
+  var elBtnMonth = document.getElementById('btn-month');
+  var elApp = document.querySelector('.app');
+  var monthPopoverIso = null;
+
+  function getSlotHeight() {
+    return state.compact ? SLOT_HEIGHT_COMPACT : SLOT_HEIGHT;
+  }
+
+  function syncCompactUI() {
+    if (elApp) elApp.classList.toggle('is-compact', !!state.compact);
+    if (elBtnCompact) {
+      elBtnCompact.classList.toggle('is-active', !!state.compact);
+      elBtnCompact.setAttribute('aria-pressed', state.compact ? 'true' : 'false');
+      elBtnCompact.title = state.compact ? 'Обычный вид' : 'Компактный вид';
+    }
+    document.documentElement.style.setProperty('--slot-h', getSlotHeight() + 'px');
+  }
+
+  // ── Tabs ───────────────────────────────────────────────────
+  function renderTabs() {
+    elTabs.innerHTML = '';
+    if (!state.categories.some(function (c) { return c.id === state.category; })) {
+      state.category = state.categories[0] ? state.categories[0].id : null;
+    }
+    state.categories.forEach(function (c) {
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'tab' + (state.category === c.id ? ' is-active' : '');
+      btn.textContent = c.label;
+      if (state.category === c.id) {
+        btn.style.background = c.color;
+        btn.style.color = '#fff';
+        btn.style.boxShadow = '0 6px 16px ' + c.color + '55';
+      } else {
+        btn.style.color = c.color;
+        btn.style.background = c.soft;
+      }
+      btn.addEventListener('click', function () {
+        state.category = c.id;
+        state.scrollToDefaultHour = false;
+        state.savedScrollTop = elMain.scrollTop;
+        render();
+      });
+      elTabs.appendChild(btn);
+    });
+  }
+
+  // ── Scroll ─────────────────────────────────────────────────
+  function applyScroll() {
+    requestAnimationFrame(function () {
+      if (state.scrollToDefaultHour) {
+        elMain.scrollTop = DEFAULT_SCROLL_HOUR * getSlotHeight();
+        state.scrollToDefaultHour = false;
+      } else if (state.savedScrollTop != null) {
+        elMain.scrollTop = state.savedScrollTop;
+        state.savedScrollTop = null;
+      }
+    });
+  }
+
+  // ── Date / recurrence helpers ───────────────────────────────
+  function weekdayIndex(dateOrISO) {
+    var d = typeof dateOrISO === 'string'
+      ? new Date(dateOrISO + 'T12:00:00')
+      : new Date(dateOrISO.getFullYear(), dateOrISO.getMonth(), dateOrISO.getDate());
+    var js = d.getDay(); // 0=Sun..6=Sat
+    return js === 0 ? 6 : js - 1; // 0=Mon..6=Sun
+  }
+
+  function parseTaskId(id) {
+    var s = String(id || '');
+    var at = s.indexOf('@');
+    if (at === -1) return { templateId: s, occurrenceDate: null };
+    return { templateId: s.slice(0, at), occurrenceDate: s.slice(at + 1) };
+  }
+
+  function findTask(id) {
+    var parsed = parseTaskId(id);
+    for (var i = 0; i < state.tasks.length; i++) {
+      if (state.tasks[i].id === parsed.templateId) return state.tasks[i];
+    }
+    return null;
+  }
+
+  function isTaskCompletedOn(task, iso) {
+    if (task.repeatWeekly) {
+      return !!(task.completedByDate && task.completedByDate[iso]);
+    }
+    return !!task.completed;
+  }
+
+  function expandTasksForRange(days) {
+    var result = [];
+    var dayISOs = days.map(function (d) { return toISODate(d); });
+    var dayWeekdays = days.map(function (d) { return weekdayIndex(d); });
+    state.tasks.forEach(function (t) {
+      if (t.category !== state.category) return;
+      if (t.repeatWeekly && t.repeatDays && t.repeatDays.length) {
+        dayISOs.forEach(function (iso, i) {
+          if (t.repeatDays.indexOf(dayWeekdays[i]) === -1) return;
+          result.push({
+            template: t,
+            id: t.id + '@' + iso,
+            date: iso,
+            title: t.title,
+            subtitle: t.subtitle,
+            category: t.category,
+            startMinutes: t.startMinutes,
+            endMinutes: t.endMinutes,
+            badges: t.badges,
+            comment: t.comment,
+            completed: isTaskCompletedOn(t, iso),
+            repeatWeekly: true
+          });
+        });
+      } else {
+        if (dayISOs.indexOf(t.date) === -1) return;
+        result.push({
+          template: t,
+          id: t.id,
+          date: t.date,
+          title: t.title,
+          subtitle: t.subtitle,
+          category: t.category,
+          startMinutes: t.startMinutes,
+          endMinutes: t.endMinutes,
+          badges: t.badges,
+          comment: t.comment,
+          completed: !!t.completed,
+          repeatWeekly: false
+        });
+      }
+    });
+    return result;
+  }
+
+  function formatDayTitle(iso) {
+    var d = new Date(iso + 'T12:00:00');
+    var wd = weekdayIndex(d);
+    return DAY_NAMES[wd] + ', ' + d.getDate() + ' ' + MONTHS_GENITIVE[d.getMonth()];
+  }
+
+  function jumpToDate(date) {
+    state.weekStart = startOfWeek(date);
+    state.focusDate = toISODate(date);
+    if (state.viewMode === 'day') {
+      // stay in day view on that date
+    }
+    state.scrollToDefaultHour = true;
+    render();
+  }
+
+  function enterDayView(iso) {
+    closeMonthPopover();
+    if (state.viewMode !== 'month') state.previousScheduleMode = 'day';
+    state.viewMode = 'day';
+    state.focusDate = iso;
+    state.weekStart = startOfWeek(new Date(iso + 'T12:00:00'));
+    state.scrollToDefaultHour = true;
+    saveState();
+    render();
+  }
+
+  function enterWeekView() {
+    closeMonthPopover();
+    state.previousScheduleMode = 'week';
+    state.viewMode = 'week';
+    state.scrollToDefaultHour = true;
+    saveState();
+    render();
+  }
+
+  function enterMonthView() {
+    if (state.viewMode === 'week' || state.viewMode === 'day') {
+      state.previousScheduleMode = state.viewMode;
+    }
+    if (state.viewMode === 'week') {
+      var focus = new Date(state.focusDate + 'T12:00:00');
+      var start = new Date(state.weekStart);
+      start.setHours(0, 0, 0, 0);
+      var end = addDays(start, 6);
+      end.setHours(23, 59, 59, 999);
+      if (focus < start || focus > end) {
+        state.focusDate = toISODate(state.weekStart);
+      }
+    }
+    state.viewMode = 'month';
+    closeMonthPopover();
+    saveState();
+    render();
+  }
+
+  function leaveMonthView(targetMode) {
+    var mode = targetMode || state.previousScheduleMode || 'week';
+    if (mode === 'day') enterDayView(state.focusDate);
+    else enterWeekView();
+  }
+
+  function toggleMonthView() {
+    if (state.viewMode === 'month') leaveMonthView();
+    else enterMonthView();
+  }
+
+  function changeMonth(delta) {
+    var d = addMonths(new Date(state.focusDate + 'T12:00:00'), delta);
+    state.focusDate = toISODate(d);
+    state.weekStart = startOfWeek(d);
+    closeMonthPopover();
+    render();
+  }
+
+  function randomTitlePlaceholder() {
+    var i = Math.floor(Math.random() * TITLE_EXAMPLES.length);
+    return 'Например, ' + TITLE_EXAMPLES[i];
+  }
+
+  function syncRepeatDaysUI() {
+    var on = elRepeatWeekly.checked;
+    elRepeatDays.style.opacity = on ? '1' : '0.45';
+    elRepeatDays.querySelectorAll('.repeat-day').forEach(function (btn) {
+      btn.disabled = !on;
+    });
+  }
+
+  function renderRepeatDaysUI() {
+    elRepeatDays.innerHTML = '';
+    DAY_NAMES.forEach(function (name, i) {
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'repeat-day' + (state.formRepeatDays.indexOf(i) !== -1 ? ' is-on' : '');
+      btn.textContent = name;
+      btn.setAttribute('data-day', String(i));
+      btn.addEventListener('click', function () {
+        if (!elRepeatWeekly.checked) {
+          elRepeatWeekly.checked = true;
+        }
+        var idx = state.formRepeatDays.indexOf(i);
+        if (idx >= 0) state.formRepeatDays.splice(idx, 1);
+        else state.formRepeatDays.push(i);
+        state.formRepeatDays.sort(function (a, b) { return a - b; });
+        renderRepeatDaysUI();
+        syncRepeatDaysUI();
+      });
+      elRepeatDays.appendChild(btn);
+    });
+    syncRepeatDaysUI();
+  }
+
+  // ── Grid ───────────────────────────────────────────────────
+  function renderGrid() {
+    if (state.viewMode === 'month') {
+      renderMonthGrid();
+      return;
+    }
+    var hours = [];
+    for (var h = HOUR_START; h < HOUR_END; h++) hours.push(h);
+    var days = [];
+    var isDay = state.viewMode === 'day';
+    if (isDay) {
+      days.push(new Date(state.focusDate + 'T12:00:00'));
+    } else {
+      for (var i = 0; i < 7; i++) days.push(addDays(state.weekStart, i));
+    }
+    var todayISO = toISODate(new Date());
+    var slotH = getSlotHeight();
+    var gridH = (HOUR_END - HOUR_START) * slotH;
+    var expanded = expandTasksForRange(days);
+
+    var html = '<div class="week-grid' + (isDay ? ' week-grid--day' : '') + '">';
+    html += '<div class="week-grid__header">';
+    html += '<div class="week-grid__corner"><span class="tz">МСК</span></div>';
+    days.forEach(function (day, i) {
+      var iso = toISODate(day);
+      var wd = weekdayIndex(day);
+      var cls = 'week-grid__dayhead';
+      if (iso === todayISO) cls += ' is-today';
+      if (isDay || iso === state.focusDate) cls += ' is-focus';
+      html += '<div class="' + cls + '" data-date="' + iso + '" role="button" tabindex="0" title="Открыть день">';
+      html += '<span class="dow">' + DAY_NAMES[wd] + '</span>';
+      html += '<span class="dom">' + day.getDate() + '</span>';
+      html += '</div>';
+    });
+    html += '</div>';
+
+    html += '<div class="week-grid__body">';
+    html += '<div class="week-grid__times" style="height:' + gridH + 'px">';
+    hours.forEach(function (hh) {
+      var label = String(hh).padStart(2, '0') + ':00';
+      html += '<div class="week-grid__hour" style="height:' + slotH + 'px"><span>' + label + '</span></div>';
+    });
+    html += '</div>';
+
+    html += '<div class="week-grid__cols" style="height:' + gridH + 'px">';
+    days.forEach(function (day, dayIndex) {
+      var iso = toISODate(day);
+      var isDrop = state.dragOver && state.dragOver.day === dayIndex;
+      html += '<div class="week-grid__col' + (isDrop ? ' is-drop' : '') + '" data-day="' + dayIndex + '" data-date="' + iso + '">';
+      hours.forEach(function () {
+        html += '<div class="week-grid__slot" style="height:' + slotH + 'px"></div>';
+      });
+      if (isDrop) {
+        var ghostTop = ((state.dragOver.minutes - HOUR_START * 60) / 60) * slotH;
+        html += '<div class="week-grid__ghost" style="top:' + ghostTop + 'px"></div>';
+      }
+      var dayTasks = expanded.filter(function (t) { return t.date === iso; });
+      dayTasks.forEach(function (task) {
+        html += renderCard(task);
+      });
+      html += '</div>';
+    });
+    html += '</div></div></div>';
+
+    elMain.innerHTML = html;
+    bindGridEvents();
+    applyScroll();
+  }
+
+  function renderCard(task) {
+    var cat = catMap[task.category] || state.categories[0] || DEFAULT_CATEGORIES[0];
+    var slotH = getSlotHeight();
+    var top = ((task.startMinutes - HOUR_START * 60) / 60) * slotH;
+    var height = state.compact
+      ? COMPACT_CARD_HEIGHT
+      : Math.max(48, ((task.endMinutes - task.startMinutes) / 60) * slotH - 4);
+    var badgesHtml = '';
+    var seen = {};
+    (task.badges || []).forEach(function (bid) {
+      if (bid === 'completed' || seen[bid]) return;
+      seen[bid] = true;
+      var b = badgeMap[bid];
+      if (!b) return;
+      var blabel = b.label === 'Прошло' ? 'выполнено' : b.label;
+      badgesHtml += '<span class="badge" style="background:' + b.bg + ';color:' + b.color + '">' + esc(blabel) + '</span>';
+    });
+    if (task.completed) {
+      badgesHtml += '<span class="badge" style="background:' + COMPLETED_BADGE.bg + ';color:' + COMPLETED_BADGE.color + '">' + esc(COMPLETED_BADGE.label) + '</span>';
+    }
+    var hasComment = !!(task.comment && String(task.comment).trim());
+    var html = '<article class="task-card' + (task.completed ? ' is-done' : '') + (task.repeatWeekly ? ' is-recurring' : '') + (state.compact ? ' is-compact-card' : '') + '"';
+    html += ' draggable="true" data-id="' + esc(task.id) + '"';
+    html += ' style="top:' + top + 'px;height:' + height + 'px;background:' + cat.bg + ';border-left-color:' + cat.color + '"';
+    html += ' role="button" tabindex="0">';
+    html += '<div class="task-card__head">';
+    html += '<h3 class="task-card__title">' + esc(task.title) + '</h3>';
+    html += '<button type="button" class="task-card__check' + (task.completed ? ' checked' : '') + '"';
+    html += ' data-toggle="' + esc(task.id) + '" title="' + (task.completed ? 'Снять «выполнено»' : 'Отметить как «выполнено»') + '">';
+    html += (task.completed ? '✓' : '') + '</button>';
+    html += '</div>';
+    html += '<div class="task-card__actions">';
+    html += '<button type="button" class="task-card__action" data-copy="' + esc(task.id) + '" title="Скопировать">⧉</button>';
+    html += '<button type="button" class="task-card__action task-card__action--danger" data-delete="' + esc(task.id) + '" title="Удалить">✕</button>';
+    html += '</div>';
+    if (task.subtitle) {
+      html += '<p class="task-card__subtitle">' + esc(task.subtitle) + '</p>';
+    }
+    html += '<div class="task-card__badges">' + badgesHtml + '</div>';
+    html += '<span class="task-card__time">';
+    if (hasComment) {
+      html += '<span class="task-card__note" title="' + esc(task.comment) + '" aria-label="Есть комментарий">💬</span>';
+    }
+    html += minutesToTime(task.startMinutes) + '–' + minutesToTime(task.endMinutes);
+    html += '</span>';
+    html += '</article>';
+    return html;
+  }
+
+  function tasksForDaySorted(iso) {
+    var day = new Date(iso + 'T12:00:00');
+    var list = expandTasksForRange([day]).slice();
+    list.sort(function (a, b) { return a.startMinutes - b.startMinutes; });
+    return list;
+  }
+
+  function renderMonthGrid() {
+    closeMonthPopover();
+    var info = daysForVisibleMonth(state.focusDate);
+    var days = info.days;
+    var todayISO = toISODate(new Date());
+    var expanded = expandTasksForRange(days);
+    var byDate = {};
+    expanded.forEach(function (t) {
+      if (!byDate[t.date]) byDate[t.date] = [];
+      byDate[t.date].push(t);
+    });
+    Object.keys(byDate).forEach(function (iso) {
+      byDate[iso].sort(function (a, b) { return a.startMinutes - b.startMinutes; });
+    });
+
+    var html = '<div class="month-grid">';
+    html += '<div class="month-grid__head">';
+    DAY_NAMES.forEach(function (name) {
+      html += '<div class="month-grid__dow">' + name + '</div>';
+    });
+    html += '</div>';
+    html += '<div class="month-grid__body">';
+    days.forEach(function (day) {
+      var iso = toISODate(day);
+      var inMonth = day.getMonth() === info.month;
+      var cls = 'month-cell';
+      if (!inMonth) cls += ' is-other';
+      if (iso === todayISO) cls += ' is-today';
+      if (iso === state.focusDate) cls += ' is-focus';
+      var dayTasks = byDate[iso] || [];
+      html += '<div class="' + cls + '" data-date="' + iso + '" role="button" tabindex="0">';
+      html += '<span class="month-cell__date">' + day.getDate() + '</span>';
+      html += '<ul class="month-cell__tasks">';
+      var shown = dayTasks.slice(0, 6);
+      shown.forEach(function (task) {
+        var cat = catMap[task.category] || state.categories[0] || DEFAULT_CATEGORIES[0];
+        html += '<li class="month-cell__task' + (task.completed ? ' is-done' : '') + '"';
+        html += ' style="border-left-color:' + cat.color + ';background:' + cat.bg + '"';
+        html += ' title="' + esc(task.title) + '">' + esc(task.title) + '</li>';
+      });
+      html += '</ul>';
+      if (dayTasks.length > 6) {
+        html += '<span class="month-cell__more">+' + (dayTasks.length - 6) + '</span>';
+      }
+      html += '</div>';
+    });
+    html += '</div></div>';
+    elMain.innerHTML = html;
+    bindMonthEvents();
+  }
+
+  function closeMonthPopover() {
+    monthPopoverIso = null;
+    var p = document.getElementById('month-popover');
+    if (p) p.remove();
+    if (elMain) {
+      elMain.querySelectorAll('.month-cell.is-open').forEach(function (c) {
+        c.classList.remove('is-open');
+      });
+    }
+  }
+
+  function positionMonthPopover(pop, anchor) {
+    var rect = anchor.getBoundingClientRect();
+    var pw = pop.offsetWidth;
+    var ph = pop.offsetHeight;
+    var left = rect.left;
+    var top = rect.bottom + 6;
+    if (left + pw > window.innerWidth - 8) left = window.innerWidth - pw - 8;
+    if (left < 8) left = 8;
+    if (top + ph > window.innerHeight - 8) {
+      top = rect.top - ph - 6;
+      if (top < 8) top = Math.max(8, window.innerHeight - ph - 8);
+    }
+    pop.style.left = left + 'px';
+    pop.style.top = top + 'px';
+  }
+
+  function openMonthPopover(iso, anchor) {
+    closeMonthPopover();
+    monthPopoverIso = iso;
+    if (anchor) anchor.classList.add('is-open');
+    var tasks = tasksForDaySorted(iso);
+    var pop = document.createElement('div');
+    pop.id = 'month-popover';
+    pop.className = 'month-popover';
+    pop.setAttribute('role', 'dialog');
+    pop.setAttribute('aria-label', formatDayTitle(iso));
+    var inner = '<div class="month-popover__head">' + esc(formatDayTitle(iso)) + '</div>';
+    inner += '<div class="month-popover__list">';
+    if (!tasks.length) {
+      inner += '<p class="month-popover__empty">Нет задач</p>';
+    } else {
+      tasks.forEach(function (task) {
+        var cat = catMap[task.category] || state.categories[0] || DEFAULT_CATEGORIES[0];
+        inner += '<div class="month-popover__item' + (task.completed ? ' is-done' : '') + '"';
+        inner += ' style="border-left-color:' + cat.color + ';background:' + cat.bg + '">';
+        inner += '<span class="month-popover__time">' + minutesToTime(task.startMinutes) + '–' + minutesToTime(task.endMinutes) + '</span>';
+        inner += '<span class="month-popover__title">' + esc(task.title) + '</span>';
+        inner += '</div>';
+      });
+    }
+    inner += '</div>';
+    inner += '<div class="month-popover__footer">';
+    inner += '<button type="button" class="btn btn--primary btn--sm" data-month-goto="' + iso + '">Перейти в расписание</button>';
+    inner += '</div>';
+    pop.innerHTML = inner;
+    document.body.appendChild(pop);
+    positionMonthPopover(pop, anchor);
+    var goto = pop.querySelector('[data-month-goto]');
+    if (goto) {
+      goto.addEventListener('click', function (e) {
+        e.stopPropagation();
+        enterDayView(iso);
+      });
+    }
+  }
+
+  function bindMonthEvents() {
+    elMain.querySelectorAll('.month-cell').forEach(function (cell) {
+      cell.addEventListener('click', function () {
+        var iso = cell.getAttribute('data-date');
+        if (!iso) return;
+        if (monthPopoverIso === iso) {
+          closeMonthPopover();
+          return;
+        }
+        openMonthPopover(iso, cell);
+      });
+      cell.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          cell.click();
+        }
+      });
+    });
+  }
+
+  function bindGridEvents() {
+    elMain.querySelectorAll('.week-grid__dayhead').forEach(function (head) {
+      head.addEventListener('click', function () {
+        var iso = head.getAttribute('data-date');
+        if (!iso) return;
+        if (state.viewMode === 'day' && state.focusDate === iso) return;
+        enterDayView(iso);
+      });
+      head.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          head.click();
+        }
+      });
+    });
+
+    var cols = elMain.querySelectorAll('.week-grid__col');
+    cols.forEach(function (col) {
+      col.addEventListener('click', function (e) {
+        if (e.target.closest('.task-card')) return;
+        var rect = col.getBoundingClientRect();
+        var y = e.clientY - rect.top;
+        var minutes = snapMinutes(HOUR_START * 60 + (y / getSlotHeight()) * 60);
+        openNew(col.getAttribute('data-date'), minutes);
+      });
+
+      col.addEventListener('dragover', function (e) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        var dayIndex = Number(col.getAttribute('data-day'));
+        var rect = col.getBoundingClientRect();
+        var y = e.clientY - rect.top;
+        var minutes = snapMinutes(HOUR_START * 60 + (y / getSlotHeight()) * 60);
+        var prev = state.dragOver;
+        if (!prev || prev.day !== dayIndex || prev.minutes !== minutes) {
+          state.dragOver = { day: dayIndex, minutes: minutes };
+          cols.forEach(function (c) { c.classList.remove('is-drop'); });
+          col.classList.add('is-drop');
+          var ghost = col.querySelector('.week-grid__ghost');
+          if (!ghost) {
+            ghost = document.createElement('div');
+            ghost.className = 'week-grid__ghost';
+            col.appendChild(ghost);
+          }
+          ghost.style.top = ((minutes - HOUR_START * 60) / 60) * getSlotHeight() + 'px';
+        }
+      });
+
+      col.addEventListener('dragleave', function (e) {
+        if (!col.contains(e.relatedTarget)) {
+          col.classList.remove('is-drop');
+          var g = col.querySelector('.week-grid__ghost');
+          if (g) g.remove();
+        }
+      });
+
+      col.addEventListener('drop', function (e) {
+        e.preventDefault();
+        var id = e.dataTransfer.getData('text/plain') || state.dragId;
+        var iso = col.getAttribute('data-date');
+        var rect = col.getBoundingClientRect();
+        var y = e.clientY - rect.top;
+        var minutes = snapMinutes(HOUR_START * 60 + (y / getSlotHeight()) * 60);
+        state.dragOver = null;
+        state.dragId = null;
+        if (id) moveTask(id, iso, minutes);
+        state.scrollToDefaultHour = false;
+        state.savedScrollTop = elMain.scrollTop;
+        render();
+      });
+    });
+
+    var cards = elMain.querySelectorAll('.task-card');
+    cards.forEach(function (card) {
+      card.addEventListener('dragstart', function (e) {
+        var id = card.getAttribute('data-id');
+        state.dragId = id;
+        e.dataTransfer.setData('text/plain', id);
+        e.dataTransfer.effectAllowed = 'move';
+        setTimeout(function () { card.style.opacity = '0.4'; }, 0);
+      });
+      card.addEventListener('dragend', function () {
+        state.dragOver = null;
+        state.dragId = null;
+        card.style.opacity = '';
+        state.scrollToDefaultHour = false;
+        state.savedScrollTop = elMain.scrollTop;
+        render();
+      });
+      card.addEventListener('click', function (e) {
+        if (e.target.closest('[data-toggle], [data-copy], [data-delete], .task-card__actions')) return;
+        openEdit(card.getAttribute('data-id'));
+      });
+      card.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          openEdit(card.getAttribute('data-id'));
+        }
+      });
+    });
+
+    elMain.querySelectorAll('[data-toggle]').forEach(function (btn) {
+      btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        toggleCompleted(btn.getAttribute('data-toggle'));
+      });
+    });
+
+    elMain.querySelectorAll('[data-copy]').forEach(function (btn) {
+      btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var copy = copyTask(btn.getAttribute('data-copy'));
+        if (!copy) return;
+        state.scrollToDefaultHour = false;
+        state.savedScrollTop = elMain.scrollTop;
+        render();
+      });
+    });
+
+    elMain.querySelectorAll('[data-delete]').forEach(function (btn) {
+      btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        if (deleteTask(btn.getAttribute('data-delete'))) {
+          state.scrollToDefaultHour = false;
+          state.savedScrollTop = elMain.scrollTop;
+          render();
+        }
+      });
+    });
+  }
+
+  // ── Task CRUD ──────────────────────────────────────────────
+  function moveTask(id, date, startMinutes) {
+    var parsed = parseTaskId(id);
+    state.tasks = state.tasks.map(function (t) {
+      if (t.id !== parsed.templateId) return t;
+      var duration = Math.max(15, t.endMinutes - t.startMinutes);
+      var end = startMinutes + duration;
+      if (end > HOUR_END * 60) {
+        end = HOUR_END * 60;
+        startMinutes = Math.max(0, end - duration);
+      }
+      var patch = {
+        date: date,
+        startMinutes: startMinutes,
+        endMinutes: end
+      };
+      if (t.repeatWeekly) {
+        var wd = weekdayIndex(date);
+        var days = (t.repeatDays || []).slice();
+        if (days.indexOf(wd) === -1) {
+          days.push(wd);
+          days.sort(function (a, b) { return a - b; });
+        }
+        patch.repeatDays = days;
+      }
+      return Object.assign({}, t, patch);
+    });
+    saveState();
+  }
+
+  function toggleCompleted(id) {
+    var parsed = parseTaskId(id);
+    state.tasks = state.tasks.map(function (t) {
+      if (t.id !== parsed.templateId) return t;
+      if (t.repeatWeekly && parsed.occurrenceDate) {
+        var map = Object.assign({}, t.completedByDate || {});
+        if (map[parsed.occurrenceDate]) delete map[parsed.occurrenceDate];
+        else map[parsed.occurrenceDate] = true;
+        return Object.assign({}, t, {
+          completedByDate: map,
+          badges: (t.badges || []).filter(function (b) { return b !== 'completed'; })
+        });
+      }
+      return Object.assign({}, t, {
+        completed: !t.completed,
+        badges: (t.badges || []).filter(function (b) { return b !== 'completed'; })
+      });
+    });
+    saveState();
+    state.scrollToDefaultHour = false;
+    state.savedScrollTop = elMain.scrollTop;
+    render();
+  }
+
+  function addTask(task) {
+    state.tasks = state.tasks.concat([task]);
+    saveState();
+  }
+
+  function updateTask(id, patch) {
+    state.tasks = state.tasks.map(function (t) {
+      return t.id === id ? Object.assign({}, t, patch) : t;
+    });
+    saveState();
+  }
+
+  function deleteTask(id) {
+    var parsed = parseTaskId(id);
+    var task = findTask(id);
+    if (!task) return false;
+    var msg = task.repeatWeekly
+      ? 'Удалить всю серию «' + task.title + '»? Задача пропадёт со всех дней повторения.'
+      : 'Удалить задачу «' + task.title + '»?';
+    if (!confirm(msg)) return false;
+    state.tasks = state.tasks.filter(function (t) { return t.id !== parsed.templateId; });
+    saveState();
+    return true;
+  }
+
+  function copyTask(id) {
+    var task = findTask(id);
+    if (!task) return null;
+    var start = task.startMinutes;
+    var end = task.endMinutes;
+    var duration = Math.max(15, end - start);
+    // Shift +1 hour if it still fits in the day; otherwise keep same slot
+    var newStart = start + 60;
+    var newEnd = newStart + duration;
+    if (newEnd > HOUR_END * 60) {
+      newStart = start;
+      newEnd = end;
+    }
+    var copy = {
+      id: uid('task'),
+      title: task.title,
+      subtitle: task.subtitle,
+      category: task.category,
+      date: task.date,
+      startMinutes: newStart,
+      endMinutes: newEnd,
+      badges: (task.badges || []).slice(),
+      completed: false,
+      comment: task.comment || '',
+      repeatWeekly: !!task.repeatWeekly,
+      repeatDays: (task.repeatDays || []).slice(),
+      completedByDate: {}
+    };
+    addTask(copy);
+    return copy;
+  }
+
+  function resetToSeed() {
+    state.categories = cloneDefaults(DEFAULT_CATEGORIES);
+    state.badges = cloneDefaults(DEFAULT_BADGES);
+    state.tasks = createSeedTasks();
+    state.category = state.categories[0].id;
+    rebuildMaps();
+    saveState();
+    state.scrollToDefaultHour = true;
+    render();
+    renderSettingsManagers();
+  }
+
+  // ── Categories / badges management ─────────────────────────
+  function renderSettingsManagers() {
+    // Categories
+    elCatList.innerHTML = '';
+    state.categories.forEach(function (c) {
+      var row = document.createElement('div');
+      row.className = 'manage-row';
+      row.innerHTML =
+        '<span class="swatch" style="background:' + esc(c.color) + '"></span>' +
+        '<input type="text" data-cat-name="' + esc(c.id) + '" value="' + esc(c.label) + '" maxlength="40">' +
+        '<input type="color" data-cat-color="' + esc(c.id) + '" value="' + esc(c.color) + '" title="Цвет">' +
+        '<button type="button" class="btn btn--danger btn--sm" data-cat-del="' + esc(c.id) + '">Удалить</button>';
+      elCatList.appendChild(row);
+    });
+
+    elCatList.querySelectorAll('[data-cat-name]').forEach(function (input) {
+      input.addEventListener('change', function () {
+        renameCategory(input.getAttribute('data-cat-name'), input.value);
+      });
+      input.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+      });
+    });
+    elCatList.querySelectorAll('[data-cat-color]').forEach(function (input) {
+      input.addEventListener('input', function () {
+        recolorCategory(input.getAttribute('data-cat-color'), input.value);
+      });
+    });
+    elCatList.querySelectorAll('[data-cat-del]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        deleteCategory(btn.getAttribute('data-cat-del'));
+      });
+    });
+
+    // Badges
+    elBadgeList.innerHTML = '';
+    state.badges.forEach(function (b) {
+      var row = document.createElement('div');
+      row.className = 'manage-row';
+      row.innerHTML =
+        '<span class="badge" style="background:' + esc(b.bg) + ';color:' + esc(b.color) + '">' + esc(b.label) + '</span>' +
+        '<input type="text" data-badge-name="' + esc(b.id) + '" value="' + esc(b.label) + '" maxlength="40">' +
+        '<button type="button" class="btn btn--danger btn--sm" data-badge-del="' + esc(b.id) + '">Удалить</button>';
+      elBadgeList.appendChild(row);
+    });
+
+    elBadgeList.querySelectorAll('[data-badge-name]').forEach(function (input) {
+      input.addEventListener('change', function () {
+        renameBadge(input.getAttribute('data-badge-name'), input.value);
+      });
+      input.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+      });
+    });
+    elBadgeList.querySelectorAll('[data-badge-del]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        deleteBadge(btn.getAttribute('data-badge-del'));
+      });
+    });
+  }
+
+  function renameCategory(id, label) {
+    label = String(label || '').trim();
+    if (!label) {
+      renderSettingsManagers();
+      return;
+    }
+    state.categories = state.categories.map(function (c) {
+      return c.id === id ? Object.assign({}, c, { label: label }) : c;
+    });
+    rebuildMaps();
+    saveState();
+    renderSettingsManagers();
+    state.scrollToDefaultHour = false;
+    state.savedScrollTop = elMain.scrollTop;
+    render();
+  }
+
+  function recolorCategory(id, color) {
+    var colors = deriveCategoryColors(color);
+    state.categories = state.categories.map(function (c) {
+      return c.id === id ? Object.assign({}, c, colors) : c;
+    });
+    rebuildMaps();
+    saveState();
+    renderSettingsManagers();
+    state.scrollToDefaultHour = false;
+    state.savedScrollTop = elMain.scrollTop;
+    render();
+  }
+
+  function addCategory(label, color) {
+    label = String(label || '').trim();
+    if (!label) return;
+    var colors = deriveCategoryColors(color || '#7c5cbf');
+    var cat = Object.assign({ id: uid('cat'), label: label }, colors);
+    state.categories = state.categories.concat([cat]);
+    rebuildMaps();
+    saveState();
+    document.getElementById('cat-new-name').value = '';
+    renderSettingsManagers();
+    initFormSelects();
+    state.scrollToDefaultHour = false;
+    state.savedScrollTop = elMain.scrollTop;
+    render();
+  }
+
+  function deleteCategory(id) {
+    if (state.categories.length <= 1) {
+      alert('Нельзя удалить последнюю категорию. Должна остаться хотя бы одна.');
+      return;
+    }
+    var remaining = state.categories.filter(function (c) { return c.id !== id; });
+    var fallback = remaining[0].id;
+    var moved = 0;
+    state.tasks = state.tasks.map(function (t) {
+      if (t.category !== id) return t;
+      moved++;
+      return Object.assign({}, t, { category: fallback });
+    });
+    state.categories = remaining;
+    if (state.category === id) state.category = fallback;
+    rebuildMaps();
+    saveState();
+    if (moved > 0) {
+      alert('Категория удалена. Задачи (' + moved + ') перенесены в «' + remaining[0].label + '».');
+    }
+    renderSettingsManagers();
+    initFormSelects();
+    state.scrollToDefaultHour = false;
+    state.savedScrollTop = elMain.scrollTop;
+    render();
+  }
+
+  function renameBadge(id, label) {
+    label = String(label || '').trim();
+    if (!label) {
+      renderSettingsManagers();
+      return;
+    }
+    state.badges = state.badges.map(function (b) {
+      return b.id === id ? Object.assign({}, b, { label: label }) : b;
+    });
+    rebuildMaps();
+    saveState();
+    renderSettingsManagers();
+    state.scrollToDefaultHour = false;
+    state.savedScrollTop = elMain.scrollTop;
+    render();
+  }
+
+  function addBadge(label) {
+    label = String(label || '').trim();
+    if (!label) return;
+    var pal = BADGE_PALETTE[state.badges.length % BADGE_PALETTE.length];
+    var badge = { id: uid('badge'), label: label, bg: pal.bg, color: pal.color };
+    state.badges = state.badges.concat([badge]);
+    rebuildMaps();
+    saveState();
+    document.getElementById('badge-new-name').value = '';
+    renderSettingsManagers();
+  }
+
+  function deleteBadge(id) {
+    state.badges = state.badges.filter(function (b) { return b.id !== id; });
+    state.tasks = state.tasks.map(function (t) {
+      return Object.assign({}, t, {
+        badges: (t.badges || []).filter(function (b) { return b !== id; })
+      });
+    });
+    state.formBadges = state.formBadges.filter(function (b) { return b !== id; });
+    rebuildMaps();
+    saveState();
+    renderSettingsManagers();
+    state.scrollToDefaultHour = false;
+    state.savedScrollTop = elMain.scrollTop;
+    render();
+  }
+
+  // ── Modal ──────────────────────────────────────────────────
+  function initFormSelects() {
+    elFormCategory.innerHTML = '';
+    state.categories.forEach(function (c) {
+      var opt = document.createElement('option');
+      opt.value = c.id;
+      opt.textContent = c.label;
+      elFormCategory.appendChild(opt);
+    });
+  }
+
+  function renderFormBadges() {
+    elFormBadges.innerHTML = '';
+    state.badges.forEach(function (b) {
+      var active = state.formBadges.indexOf(b.id) !== -1;
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'badge-toggle' + (active ? ' active' : '');
+      btn.textContent = b.label;
+      btn.style.background = active ? b.bg : '#f3f4f6';
+      btn.style.color = active ? b.color : '#6b7280';
+      btn.addEventListener('click', function () {
+        var idx = state.formBadges.indexOf(b.id);
+        if (idx >= 0) state.formBadges.splice(idx, 1);
+        else state.formBadges.push(b.id);
+        renderFormBadges();
+      });
+      elFormBadges.appendChild(btn);
+    });
+  }
+
+  function openNew(date, startMinutes) {
+    state.editingId = null;
+    elModalTitle.textContent = 'Новая задача';
+    elModalSubmit.textContent = 'Добавить';
+    initFormSelects();
+    elFormTitle.placeholder = randomTitlePlaceholder();
+    elForm.title.value = '';
+    elForm.subtitle.value = '';
+    elForm.category.value = state.category;
+    elForm.date.value = date;
+    elForm.start.value = padTime(minutesToTime(startMinutes));
+    elForm.end.value = padTime(minutesToTime(Math.min(startMinutes + 45, HOUR_END * 60)));
+    state.formBadges = [];
+    elForm.comment.value = '';
+    elCompleted.checked = false;
+    elRepeatWeekly.checked = false;
+    state.formRepeatDays = [weekdayIndex(date)];
+    renderFormBadges();
+    renderRepeatDaysUI();
+    elModalDelete.hidden = true;
+    elModalCopy.hidden = true;
+    elTaskModal.hidden = false;
+    elForm.title.focus();
+  }
+
+  function openEdit(id) {
+    var parsed = parseTaskId(id);
+    var task = findTask(id);
+    if (!task) return;
+    state.editingId = parsed.templateId;
+    elModalTitle.textContent = task.repeatWeekly ? 'Редактировать серию' : 'Редактировать задачу';
+    elModalSubmit.textContent = 'Сохранить';
+    initFormSelects();
+    elFormTitle.placeholder = randomTitlePlaceholder();
+    elForm.title.value = task.title;
+    elForm.subtitle.value = task.subtitle || '';
+    elForm.category.value = task.category;
+    // For recurring, show the clicked occurrence date if any
+    elForm.date.value = parsed.occurrenceDate || task.date;
+    elForm.start.value = padTime(minutesToTime(task.startMinutes));
+    elForm.end.value = padTime(minutesToTime(task.endMinutes));
+    state.formBadges = (task.badges || []).filter(function (b) { return b !== 'completed'; });
+    elForm.comment.value = task.comment || '';
+    if (task.repeatWeekly && parsed.occurrenceDate) {
+      elCompleted.checked = isTaskCompletedOn(task, parsed.occurrenceDate);
+    } else {
+      elCompleted.checked = !!task.completed;
+    }
+    elRepeatWeekly.checked = !!task.repeatWeekly;
+    state.formRepeatDays = (task.repeatDays && task.repeatDays.length)
+      ? task.repeatDays.slice()
+      : [weekdayIndex(elForm.date.value)];
+    state._editOccurrenceDate = parsed.occurrenceDate || null;
+    renderFormBadges();
+    renderRepeatDaysUI();
+    elModalDelete.hidden = false;
+    elModalCopy.hidden = false;
+    elModalDelete.textContent = task.repeatWeekly ? 'Удалить серию' : 'Удалить';
+    elTaskModal.hidden = false;
+    elForm.title.focus();
+  }
+
+  function padTime(t) {
+    var parts = t.split(':');
+    return String(parts[0]).padStart(2, '0') + ':' + String(parts[1] || '00').padStart(2, '0');
+  }
+
+  function closeTaskModal() {
+    elTaskModal.hidden = true;
+    state.editingId = null;
+  }
+
+  function closeSettings() {
+    elSettingsModal.hidden = true;
+  }
+
+  // ── Render ─────────────────────────────────────────────────
+  function syncMonthUI() {
+    var on = state.viewMode === 'month';
+    if (elApp) elApp.classList.toggle('is-month', on);
+    if (elBtnMonth) {
+      elBtnMonth.classList.toggle('is-active', on);
+      elBtnMonth.setAttribute('aria-pressed', on ? 'true' : 'false');
+      elBtnMonth.title = on ? 'Неделя / день' : 'Месяц';
+    }
+  }
+
+  function render() {
+    syncCompactUI();
+    syncMonthUI();
+    if (state.viewMode === 'month') {
+      elWeekTitle.textContent = formatMonthTitle(state.focusDate);
+      elBtnWeek.hidden = false;
+    } else if (state.viewMode === 'day') {
+      elWeekTitle.textContent = formatDayTitle(state.focusDate);
+      elBtnWeek.hidden = false;
+    } else {
+      elWeekTitle.textContent = formatWeekRange(state.weekStart);
+      elBtnWeek.hidden = true;
+    }
+    renderTabs();
+    renderGrid();
+  }
+
+  // ── Events ─────────────────────────────────────────────────
+  function changeWeek(deltaDays) {
+    if (state.viewMode === 'day') {
+      var d = addDays(new Date(state.focusDate + 'T12:00:00'), deltaDays);
+      state.focusDate = toISODate(d);
+      state.weekStart = startOfWeek(d);
+    } else {
+      state.weekStart = addDays(state.weekStart, deltaDays);
+    }
+    state.scrollToDefaultHour = true;
+    render();
+  }
+
+  document.getElementById('btn-prev').addEventListener('click', function () {
+    if (state.viewMode === 'month') changeMonth(-1);
+    else changeWeek(state.viewMode === 'day' ? -1 : -7);
+  });
+  document.getElementById('btn-next').addEventListener('click', function () {
+    if (state.viewMode === 'month') changeMonth(1);
+    else changeWeek(state.viewMode === 'day' ? 1 : 7);
+  });
+  elBtnWeek.addEventListener('click', function () {
+    enterWeekView();
+  });
+  elWeekTitle.addEventListener('click', function () {
+    if (state.viewMode === 'day' || state.viewMode === 'month') enterWeekView();
+  });
+  elWeekTitle.style.cursor = 'pointer';
+  elWeekTitle.title = 'Показать неделю';
+
+  function goRelativeDay(offset) {
+    var base = new Date();
+    base.setHours(12, 0, 0, 0);
+    var target = addDays(base, offset);
+    if (state.viewMode === 'day') {
+      state.focusDate = toISODate(target);
+      state.weekStart = startOfWeek(target);
+    } else {
+      state.weekStart = startOfWeek(target);
+      state.focusDate = toISODate(target);
+    }
+    state.scrollToDefaultHour = true;
+    render();
+  }
+
+  document.getElementById('btn-yesterday').addEventListener('click', function () {
+    goRelativeDay(-1);
+  });
+  document.getElementById('btn-today').addEventListener('click', function () {
+    goRelativeDay(0);
+  });
+  document.getElementById('btn-tomorrow').addEventListener('click', function () {
+    goRelativeDay(1);
+  });
+  elRepeatWeekly.addEventListener('change', function () {
+    if (elRepeatWeekly.checked && !state.formRepeatDays.length) {
+      state.formRepeatDays = [weekdayIndex(elForm.date.value || toISODate(new Date()))];
+      renderRepeatDaysUI();
+    } else {
+      syncRepeatDaysUI();
+    }
+  });
+  elBtnMonth.addEventListener('click', function () {
+    toggleMonthView();
+  });
+  elBtnCompact.addEventListener('click', function () {
+    state.compact = !state.compact;
+    saveState();
+    state.scrollToDefaultHour = false;
+    state.savedScrollTop = elMain.scrollTop;
+    // Scale scroll so the same hour stays roughly in view after denser rows
+    var oldH = state.compact ? SLOT_HEIGHT : SLOT_HEIGHT_COMPACT;
+    var newH = getSlotHeight();
+    if (oldH > 0) {
+      state.savedScrollTop = Math.round(elMain.scrollTop * (newH / oldH));
+    }
+    render();
+  });
+  document.getElementById('btn-settings').addEventListener('click', function () {
+    closeMonthPopover();
+    renderSettingsManagers();
+    elSettingsModal.hidden = false;
+  });
+  document.getElementById('settings-close').addEventListener('click', closeSettings);
+  elSettingsModal.addEventListener('click', function (e) {
+    if (e.target === elSettingsModal) closeSettings();
+  });
+  document.getElementById('btn-reset').addEventListener('click', function () {
+    if (confirm('Сбросить расписание, категории и метки к демо-данным?')) {
+      resetToSeed();
+      closeSettings();
+    }
+  });
+
+  document.getElementById('cat-add').addEventListener('click', function () {
+    addCategory(
+      document.getElementById('cat-new-name').value,
+      document.getElementById('cat-new-color').value
+    );
+  });
+  document.getElementById('cat-new-name').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      document.getElementById('cat-add').click();
+    }
+  });
+  document.getElementById('badge-add').addEventListener('click', function () {
+    addBadge(document.getElementById('badge-new-name').value);
+  });
+  document.getElementById('badge-new-name').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      document.getElementById('badge-add').click();
+    }
+  });
+
+  document.getElementById('task-modal-close').addEventListener('click', closeTaskModal);
+  document.getElementById('task-modal-cancel').addEventListener('click', closeTaskModal);
+  elModalDelete.addEventListener('click', function () {
+    if (!state.editingId) return;
+    if (deleteTask(state.editingId)) {
+      closeTaskModal();
+      state.scrollToDefaultHour = false;
+      state.savedScrollTop = elMain.scrollTop;
+      render();
+    }
+  });
+  elModalCopy.addEventListener('click', function () {
+    if (!state.editingId) return;
+    var copy = copyTask(state.editingId);
+    if (!copy) return;
+    closeTaskModal();
+    state.scrollToDefaultHour = false;
+    state.savedScrollTop = elMain.scrollTop;
+    render();
+    // Open the copy for quick tweak
+    openEdit(copy.id);
+  });
+  elTaskModal.addEventListener('click', function (e) {
+    if (e.target === elTaskModal) closeTaskModal();
+  });
+  elTaskModal.querySelector('.modal').addEventListener('click', function (e) {
+    e.stopPropagation();
+  });
+  elSettingsModal.querySelector('.modal').addEventListener('click', function (e) {
+    e.stopPropagation();
+  });
+
+  elForm.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var title = elForm.title.value.trim();
+    var date = elForm.date.value;
+    if (!title || !date) return;
+    var startMinutes = timeToMinutes(elForm.start.value);
+    var endMinutes = timeToMinutes(elForm.end.value);
+    if (endMinutes <= startMinutes) endMinutes = startMinutes + 45;
+    var completed = elCompleted.checked;
+    var finalBadges = state.formBadges.filter(function (b) { return b !== 'completed'; });
+    var repeatWeekly = !!elRepeatWeekly.checked;
+    var repeatDays = repeatWeekly ? state.formRepeatDays.slice() : [];
+    if (repeatWeekly && !repeatDays.length) {
+      repeatDays = [weekdayIndex(date)];
+    }
+
+    var payload = {
+      id: state.editingId || uid('task'),
+      title: title,
+      subtitle: elForm.subtitle.value.trim(),
+      category: elForm.category.value,
+      date: date,
+      startMinutes: startMinutes,
+      endMinutes: endMinutes,
+      badges: finalBadges,
+      completed: repeatWeekly ? false : completed,
+      comment: elForm.comment.value,
+      repeatWeekly: repeatWeekly,
+      repeatDays: repeatDays
+    };
+
+    if (state.editingId) {
+      var existing = findTask(state.editingId);
+      var completedByDate = existing && existing.completedByDate
+        ? Object.assign({}, existing.completedByDate) : {};
+      if (repeatWeekly) {
+        var occ = state._editOccurrenceDate || date;
+        if (completed) completedByDate[occ] = true;
+        else delete completedByDate[occ];
+        payload.completedByDate = completedByDate;
+        payload.completed = false;
+      } else {
+        payload.completedByDate = {};
+      }
+      updateTask(state.editingId, payload);
+    } else {
+      payload.completedByDate = {};
+      if (repeatWeekly && completed) {
+        payload.completedByDate[date] = true;
+        payload.completed = false;
+      }
+      addTask(payload);
+    }
+    state._editOccurrenceDate = null;
+    closeTaskModal();
+    state.scrollToDefaultHour = false;
+    state.savedScrollTop = elMain.scrollTop;
+    render();
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') {
+      if (monthPopoverIso) closeMonthPopover();
+      else if (!elTaskModal.hidden) closeTaskModal();
+      else if (!elSettingsModal.hidden) closeSettings();
+    }
+  });
+  document.addEventListener('mousedown', function (e) {
+    if (!monthPopoverIso) return;
+    var pop = document.getElementById('month-popover');
+    if (pop && pop.contains(e.target)) return;
+    if (e.target.closest && e.target.closest('.month-cell')) return;
+    closeMonthPopover();
+  });
+  window.addEventListener('resize', function () {
+    if (!monthPopoverIso) return;
+    var pop = document.getElementById('month-popover');
+    var open = elMain && elMain.querySelector('.month-cell.is-open');
+    if (pop && open) positionMonthPopover(pop, open);
+  });
+
+  // ── Boot / Auth ────────────────────────────────────────────
+  var elLoginScreen = document.getElementById('login-screen');
+  var elAppRoot = document.getElementById('app-root');
+  var elBtnTelegram = document.getElementById('btn-telegram-login');
+  var elLoginStatus = document.getElementById('login-status');
+  var elBtnLogout = document.getElementById('btn-logout');
+  var elUserChip = document.getElementById('user-chip');
+  var elUserName = document.getElementById('user-name');
+  var pollTimer = null;
+  var calendarReady = false;
+
+  function setLoginStatus(msg, isError) {
+    elLoginStatus.textContent = msg || '';
+    elLoginStatus.className = 'login-status' + (isError ? ' is-error' : '');
+  }
+
+  function showUser(user) {
+    if (!user) { elUserChip.hidden = true; return; }
+    var label = user.name || (user.username ? '@' + user.username : 'ID ' + user.telegramId);
+    elUserName.textContent = label;
+    elUserChip.hidden = false;
+  }
+
+  function stopPoll() {
+    if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+  }
+
+  function wireCalendarOnce() {
+    if (calendarReady) return;
+    calendarReady = true;
+    initFormSelects();
+    render();
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () {
+        if (state.viewMode === 'week' || state.viewMode === 'day') scrollMainToDefaultHour();
+      });
+    });
+  }
+
+  function enterApp(user, calendar) {
+    window.__goalsAuthed = true;
+    stopPoll();
+    showUser(user);
+    applyCalendarData(calendar || {});
+    elLoginScreen.hidden = true;
+    elAppRoot.hidden = false;
+    wireCalendarOnce();
+    render();
+  }
+
+  function showLogin() {
+    window.__goalsAuthed = false;
+    stopPoll();
+    elAppRoot.hidden = true;
+    elLoginScreen.hidden = false;
+    elBtnTelegram.disabled = false;
+    setLoginStatus('');
+  }
+
+  function loadCalendarAndEnter(user) {
+    return fetch('/api/calendar', { credentials: 'same-origin' })
+      .then(function (r) {
+        if (!r.ok) throw new Error('calendar');
+        return r.json();
+      })
+      .then(function (cal) {
+        // Seed demo tasks once if empty, then persist
+        if (!cal.tasks || !cal.tasks.length) {
+          cal._seedIfEmpty = true;
+          enterApp(user, cal);
+          saveState();
+        } else {
+          enterApp(user, cal);
+        }
+      });
+  }
+
+  function startTelegramLogin() {
+    elBtnTelegram.disabled = true;
+    setLoginStatus('Создаём ссылку…');
+    fetch('/api/auth/telegram/start', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}'
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (!data.loginUrl || !data.code) throw new Error('no url');
+        setLoginStatus('');
+        elLoginStatus.innerHTML = 'Откройте бота и подтвердите вход: <a href="' + data.loginUrl + '" target="_blank" rel="noopener">@mygoals_bot</a>';
+        window.open(data.loginUrl, '_blank', 'noopener');
+        var code = data.code;
+        var tries = 0;
+        stopPoll();
+        pollTimer = setInterval(function () {
+          tries++;
+          if (tries > 120) {
+            stopPoll();
+            elBtnTelegram.disabled = false;
+            setLoginStatus('Время ожидания истекло. Попробуйте ещё раз.', true);
+            return;
+          }
+          fetch('/api/auth/telegram/status?code=' + encodeURIComponent(code), { credentials: 'same-origin' })
+            .then(function (r) { return r.json(); })
+            .then(function (st) {
+              if (st.status === 'authenticated' && st.user) {
+                stopPoll();
+                setLoginStatus('Вход выполнен…');
+                return loadCalendarAndEnter(st.user);
+              }
+              if (st.status === 'expired' || st.status === 'invalid') {
+                stopPoll();
+                elBtnTelegram.disabled = false;
+                setLoginStatus('Код истёк. Запросите новый.', true);
+              }
+            })
+            .catch(function () { /* keep polling */ });
+        }, 1500);
+      })
+      .catch(function () {
+        elBtnTelegram.disabled = false;
+        setLoginStatus('Не удалось начать вход. Проверьте сервер.', true);
+      });
+  }
+
+  elBtnTelegram.addEventListener('click', startTelegramLogin);
+  elBtnLogout.addEventListener('click', function () {
+    fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' })
+      .then(function () { showLogin(); })
+      .catch(function () { showLogin(); });
+  });
+
+  // Session restore
+  fetch('/api/me', { credentials: 'same-origin' })
+    .then(function (r) {
+      if (!r.ok) throw new Error('no session');
+      return r.json();
+    })
+    .then(function (user) { return loadCalendarAndEnter(user); })
+    .catch(function () { showLogin(); });
+
+})();
+</script>
+</body>
+</html>
