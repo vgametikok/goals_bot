@@ -4,19 +4,63 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>MYGOALS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 :root {
   color-scheme: light;
+
   --bg: #f7f8fb;
+  --bg-soft: #f0f2f8;
   --surface: #ffffff;
   --text: #1f2937;
+  --text-secondary: #374151;
   --muted: #6b7280;
   --line: #e8ebf2;
-  --shadow: 0 10px 30px rgba(31, 41, 55, 0.06);
+  --line-strong: #d5dae6;
+
+  --violet: #7c5cbf;
+  --blue: #5b8def;
+  --sky: #38bdf8;
+  --brand: linear-gradient(135deg, #7c5cbf 0%, #5b8def 50%, #38bdf8 100%);
+  --brand-soft: linear-gradient(135deg, rgba(124,92,191,0.12) 0%, rgba(91,141,239,0.10) 50%, rgba(56,189,248,0.10) 100%);
+  --brand-tint: #f3effc;
+  --today-ring: linear-gradient(135deg, #7c5cbf, #38bdf8);
+
+  --success: #16a34a;
+  --success-bg: #dcfce7;
+  --danger: #b91c1c;
+  --danger-bg: #fee2e2;
+  --tg: #2AABEE;
+
+  --cat-study: #7c5cbf;
+  --cat-study-bg: #f3effc;
+  --cat-sport: #10b981;
+  --cat-sport-bg: #ecfdf5;
+  --cat-work: #5b8def;
+  --cat-work-bg: #eff6ff;
+  --cat-personal: #f59e0b;
+  --cat-personal-bg: #fffbeb;
+
+  --radius-xs: 8px;
+  --radius-sm: 12px;
   --radius: 16px;
-  --radius-sm: 10px;
+  --radius-lg: 20px;
+  --radius-xl: 24px;
+  --radius-pill: 999px;
+
+  --shadow-xs: 0 1px 2px rgba(31, 41, 55, 0.04);
+  --shadow-sm: 0 4px 12px rgba(31, 41, 55, 0.06);
+  --shadow: 0 10px 30px rgba(31, 41, 55, 0.06);
+  --shadow-md: 0 16px 40px rgba(31, 41, 55, 0.10);
+  --shadow-brand: 0 10px 28px rgba(124, 92, 191, 0.28);
+
+  --font: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --touch: 44px;
   --slot-h: 144px;
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+
+  font-family: var(--font);
   line-height: 1.4;
   font-weight: 400;
   color: var(--text);
@@ -101,8 +145,6 @@ button, input, select, textarea { font: inherit; }
 .app.is-compact .task-card__action { width: 18px; height: 18px; font-size: 0.7rem; }
 .btn--ghost { background: transparent; color: var(--muted); border: 1px solid var(--line); }
 .btn--today { margin-left: 0; }
-.btn--primary { background: #7c5cbf; color: #fff; }
-.btn--primary:hover { filter: brightness(1.05); }
 .btn--danger { background: #fee2e2; color: #b91c1c; }
 .btn--danger:hover { background: #fecaca; }
 .btn--sm { padding: 6px 12px; font-size: 0.82rem; border-radius: 10px; }
@@ -920,7 +962,7 @@ body.is-dragging-task .app-main { touch-action: none; }
 
 .login-screen {
   min-height: 100vh; display: flex; align-items: center; justify-content: center;
-  padding: 24px; background: linear-gradient(160deg, #f3eefc 0%, #e8f2fb 50%, #f7f8fb 100%);
+  padding: 24px; background: #f7f8fb; position: relative;
 }
 .login-screen[hidden] { display: none !important; }
 .login-card {
@@ -965,6 +1007,208 @@ body.is-dragging-task .app-main { touch-action: none; }
   .header-actions__panel .user-chip { width: auto; min-height: 0; }
 }
 
+
+/* ── MYGOALS concept polish ── */
+.btn--primary {
+  background: var(--brand);
+  color: #fff;
+  box-shadow: var(--shadow-brand);
+}
+.btn--primary:hover { filter: brightness(1.05); }
+.btn--today {
+  background: var(--brand-soft);
+  border: 1px solid transparent;
+  color: var(--violet);
+  box-shadow: 0 0 0 1px rgba(124,92,191,0.22);
+  position: relative;
+}
+.btn--today:hover { filter: brightness(0.98); }
+.btn--compact.is-active {
+  background: var(--brand-soft);
+  border-color: transparent;
+  color: var(--violet);
+  box-shadow: 0 0 0 2px rgba(124,92,191,0.25);
+  outline: none;
+}
+.repeat-day.is-on {
+  background: var(--brand-soft);
+  border-color: transparent;
+  color: var(--violet);
+  box-shadow: 0 0 0 2px rgba(124,92,191,0.25);
+  outline: none;
+}
+.modal__form input:focus, .modal__form select:focus, .modal__form textarea:focus {
+  outline: none;
+  border-color: transparent;
+  background: #fff;
+  box-shadow: 0 0 0 2px #fff, 0 0 0 4px rgba(124,92,191,0.35);
+}
+
+.view-seg {
+  display: inline-flex;
+  padding: 4px;
+  gap: 2px;
+  background: var(--bg-soft);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  flex: none;
+}
+.view-seg__item {
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 0.82rem;
+  padding: 8px 14px;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  min-height: 36px;
+  transition: color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+.view-seg__item:hover { color: var(--text); }
+.view-seg__item.is-active {
+  background: var(--brand);
+  color: #fff;
+  box-shadow: var(--shadow-brand);
+}
+
+.week-grid__dayhead.is-today {
+  background: var(--brand-soft);
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(124,92,191,0.25);
+  position: relative;
+}
+.week-grid__dayhead.is-today::after {
+  content: "";
+  position: absolute; inset: -1px;
+  border-radius: 15px;
+  padding: 2px;
+  background: var(--brand);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+.week-grid__dayhead.is-today .dom {
+  background: var(--brand);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.week-grid__dayhead:hover { background: var(--brand-tint); transform: translateY(-1px); }
+.week-grid__dayhead.is-focus {
+  background: var(--brand-soft);
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(124,92,191,0.45);
+}
+
+.month-cell.is-today {
+  background: linear-gradient(#fff, #fff) padding-box, var(--brand) border-box;
+  border: 2px solid transparent;
+  outline: none;
+  box-shadow: 0 8px 24px rgba(124,92,191,0.12);
+}
+.month-cell.is-today .month-cell__date {
+  background: var(--brand);
+  color: #fff;
+  box-shadow: var(--shadow-brand);
+  width: 28px; height: 28px;
+  display: grid; place-items: center;
+  border-radius: 50%;
+}
+.month-cell.is-open {
+  background: var(--brand-soft);
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(124,92,191,0.45);
+}
+.month-cell.is-focus:not(.is-today) {
+  border-color: rgba(124,92,191,0.35);
+}
+
+.task-card {
+  background: var(--surface);
+}
+.save-indicator.is-saving { color: var(--violet); }
+
+.login-screen {
+  background: #f7f8fb;
+  overflow: hidden;
+  isolation: isolate;
+}
+.login-screen::before {
+  content: "";
+  position: absolute; inset: 0; pointer-events: none; z-index: 0;
+  background:
+    radial-gradient(ellipse 60% 50% at 15% 20%, rgba(124,92,191,0.22), transparent 60%),
+    radial-gradient(ellipse 50% 45% at 85% 15%, rgba(56,189,248,0.20), transparent 55%),
+    radial-gradient(ellipse 55% 50% at 70% 85%, rgba(91,141,239,0.18), transparent 60%),
+    radial-gradient(ellipse 40% 35% at 20% 80%, rgba(124,92,191,0.10), transparent 50%),
+    linear-gradient(160deg, #f3eefc 0%, #e8f2fb 45%, #f7f8fb 100%);
+}
+.login-card {
+  position: relative; z-index: 1;
+  background: rgba(255,255,255,0.92);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255,255,255,0.8);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-md);
+}
+.login-card .btn--telegram,
+.btn--telegram {
+  background: #2AABEE !important;
+  color: #fff !important;
+}
+.btn--login { background: #2AABEE; color: #fff; }
+
+/* Hide legacy month/week toggles — view-seg owns them */
+#btn-month.view-seg-legacy,
+.app-header__week .btn--week { display: none !important; }
+
+.mobile-tabbar {
+  display: none;
+}
+@media (max-width: 768px), (pointer: coarse) {
+  .app {
+    padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+  }
+  .mobile-tabbar {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 4px;
+    position: fixed;
+    left: 12px; right: 12px;
+    bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+    z-index: 40;
+    padding: 8px 6px;
+    background: rgba(255,255,255,0.94);
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    box-shadow: var(--shadow-sm);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+  .mobile-tabbar__item {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 2px; min-height: var(--touch);
+    border: none; background: transparent;
+    color: var(--muted); font-size: 0.68rem; font-weight: 600;
+    border-radius: 14px; cursor: pointer; padding: 4px;
+  }
+  .mobile-tabbar__item.is-active {
+    color: var(--violet);
+    background: var(--brand-soft);
+  }
+  .mobile-tabbar__ico { font-size: 1.1rem; line-height: 1; }
+  .view-seg { display: none; }
+  .app-header__week .btn--week { display: none !important; }
+  #btn-month.view-seg-legacy { display: none !important; }
+}
+@media (min-width: 769px) and (pointer: fine) {
+  .mobile-tabbar { display: none !important; }
+}
+
 </style>
 </head>
 <body>
@@ -988,7 +1232,7 @@ body.is-dragging-task .app-main { touch-action: none; }
       <div class="header-actions">
         <button type="button" class="btn btn--more" id="btn-more" aria-expanded="false" aria-controls="header-actions-panel" title="Меню">⋯</button>
         <div class="header-actions__panel" id="header-actions-panel">
-          <button type="button" class="btn btn--compact" id="btn-month" aria-pressed="false" title="Месяц">
+          <button type="button" class="btn btn--compact view-seg-legacy" id="btn-month" aria-pressed="false" title="Месяц" hidden>
             Месяц
           </button>
           <button type="button" class="btn btn--compact" id="btn-compact" aria-pressed="false" title="Компактный вид">
@@ -1007,6 +1251,11 @@ body.is-dragging-task .app-main { touch-action: none; }
       <button type="button" class="nav-arrow" id="btn-prev" aria-label="Назад">‹</button>
       <h1 class="week-title" id="week-title"></h1>
       <button type="button" class="nav-arrow" id="btn-next" aria-label="Вперёд">›</button>
+      <div class="view-seg" id="view-seg" role="group" aria-label="Вид">
+        <button type="button" class="view-seg__item" data-view="day" id="seg-day">День</button>
+        <button type="button" class="view-seg__item" data-view="week" id="seg-week">Неделя</button>
+        <button type="button" class="view-seg__item" data-view="month" id="seg-month">Месяц</button>
+      </div>
       <button type="button" class="btn btn--ghost btn--week" id="btn-week" hidden>Неделя</button>
       <div class="nav-jump" role="group" aria-label="Быстрый переход">
         <button type="button" class="btn btn--ghost" id="btn-yesterday">Вчера</button>
@@ -1016,6 +1265,13 @@ body.is-dragging-task .app-main { touch-action: none; }
     </div>
   </header>
   <main class="app-main" id="main"></main>
+
+<nav class="mobile-tabbar" id="mobile-tabbar" aria-label="Навигация">
+  <button type="button" class="mobile-tabbar__item" data-view="day" id="tab-day"><span class="mobile-tabbar__ico" aria-hidden="true">📅</span>День</button>
+  <button type="button" class="mobile-tabbar__item" data-view="week" id="tab-week"><span class="mobile-tabbar__ico" aria-hidden="true">🗓️</span>Неделя</button>
+  <button type="button" class="mobile-tabbar__item" data-view="month" id="tab-month"><span class="mobile-tabbar__ico" aria-hidden="true">▦</span>Месяц</button>
+  <button type="button" class="mobile-tabbar__item" id="tab-more"><span class="mobile-tabbar__ico" aria-hidden="true">⋯</span>Ещё</button>
+</nav>
 </div>
 
 <!-- Login modal -->
@@ -2068,7 +2324,7 @@ body.is-dragging-task .app-main { touch-action: none; }
     var hasComment = !!(task.comment && String(task.comment).trim());
     var html = '<article class="task-card' + (task.completed ? ' is-done' : '') + (task.repeatWeekly ? ' is-recurring' : '') + (state.compact ? ' is-compact-card' : '') + '"';
     html += ' draggable="true" data-id="' + esc(task.id) + '"';
-    html += ' style="top:' + top + 'px;height:' + height + 'px;background:' + cat.bg + ';border-left-color:' + cat.color + '"';
+    html += ' style="top:' + top + 'px;height:' + height + 'px;background:linear-gradient(90deg, ' + cat.bg + ' 0%, #ffffff 42%);border-left-color:' + cat.color + '"';
     html += ' role="button" tabindex="0">';
     html += '<div class="task-card__head">';
     html += '<h3 class="task-card__title">' + esc(task.title) + '</h3>';
@@ -3058,6 +3314,26 @@ body.is-dragging-task .app-main { touch-action: none; }
       elBtnMonth.setAttribute('aria-pressed', on ? 'true' : 'false');
       elBtnMonth.title = on ? 'Неделя / день' : 'Месяц';
     }
+    syncViewSegUI();
+  }
+
+  function syncViewSegUI() {
+    var mode = state.viewMode === 'month' ? 'month' : (state.viewMode === 'day' ? 'day' : 'week');
+    document.querySelectorAll('#view-seg [data-view], #mobile-tabbar [data-view]').forEach(function (btn) {
+      var active = btn.getAttribute('data-view') === mode;
+      btn.classList.toggle('is-active', active);
+      btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+    });
+  }
+
+  function setViewModeFromUI(mode) {
+    if (mode === 'day') {
+      enterDayView(state.focusDate || toISODate(new Date()));
+    } else if (mode === 'month') {
+      enterMonthView();
+    } else {
+      enterWeekView();
+    }
   }
 
   function render() {
@@ -3159,6 +3435,28 @@ body.is-dragging-task .app-main { touch-action: none; }
   elBtnMonth.addEventListener('click', function () {
     toggleMonthView();
   });
+  (function bindViewSeg() {
+    function onSegClick(e) {
+      var btn = e.target.closest('[data-view]');
+      if (!btn) return;
+      var mode = btn.getAttribute('data-view');
+      if (mode) setViewModeFromUI(mode);
+    }
+    var seg = document.getElementById('view-seg');
+    if (seg) seg.addEventListener('click', onSegClick);
+    var bar = document.getElementById('mobile-tabbar');
+    if (bar) {
+      bar.addEventListener('click', function (e) {
+        var more = e.target.closest('#tab-more');
+        if (more) {
+          var moreBtn = document.getElementById('btn-more');
+          if (moreBtn) moreBtn.click();
+          return;
+        }
+        onSegClick(e);
+      });
+    }
+  })();
   elBtnCompact.addEventListener('click', function () {
     state.compact = !state.compact;
     saveState();
