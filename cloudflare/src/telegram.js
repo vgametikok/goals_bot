@@ -120,10 +120,11 @@ export async function handleTelegramUpdate(db, botToken, update) {
   if (!message || !message.text) return;
 
   const text = String(message.text).trim();
-  if (!text.startsWith('/start')) return;
+  // /start, /start@botname, /start CODE, /start@botname CODE
+  const startMatch = text.match(/^\/start(?:@[A-Za-z0-9_]+)?(?:\s+([\s\S]+))?$/i);
+  if (!startMatch) return;
 
-  const parts = text.split(/\s+/);
-  const payload = parts.length > 1 ? parts.slice(1).join(' ').trim() : '';
+  const payload = (startMatch[1] || '').trim();
   const chatId = message.chat && message.chat.id;
   const from = message.from;
 
@@ -134,15 +135,21 @@ export async function handleTelegramUpdate(db, botToken, update) {
       botToken,
       chatId,
       'Привет! 👋\n\n' +
-        'Это бот для входа в приложение MYGOALS.\n' +
-        'Откройте сайт и нажмите «Войти через Telegram» — я пришлю вам код для входа.'
+        'Это бот для входа в приложение MYGOALS.\n\n' +
+        '1) Откройте сайт https://vgametikok.github.io/goals_bot/\n' +
+        '2) Нажмите «Войти через Telegram»\n' +
+        '3) Вернитесь сюда по ссылке с сайта — вход подтвердится сам.'
     );
     return;
   }
 
   const code = payload.toUpperCase().replace(/[^A-Z0-9]/g, '');
   if (!code) {
-    await replyMessage(botToken, chatId, 'Неверный код входа. Запросите новый на сайте.');
+    await replyMessage(
+      botToken,
+      chatId,
+      'Не вижу код входа.\nОткройте сайт и нажмите «Войти через Telegram» — придёт ссылка с кодом.'
+    );
     return;
   }
 
