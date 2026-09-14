@@ -208,9 +208,33 @@ button, input, select, textarea { font: inherit; }
 .modal-backdrop {
   position: fixed; inset: 0; background: rgba(17, 24, 39, 0.35);
   display: grid; place-items: center; padding: 20px; z-index: 50;
-  backdrop-filter: blur(2px);
+  backdrop-filter: none;
 }
 .modal-backdrop[hidden] { display: none; }
+
+/* hidden must win over .modal { display:flex } / fixed backdrops */
+.modal[hidden],
+.login-modal[hidden],
+.modal-backdrop[hidden],
+.header-menu-backdrop[hidden] {
+  display: none !important;
+}
+.login-modal:not([hidden]) {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+}
+.login-modal:not([hidden]) > .modal-backdrop {
+  z-index: 0;
+}
+.login-modal:not([hidden]) > .modal-card {
+  position: relative;
+  z-index: 1;
+}
+
 .modal {
   width: min(520px, 100%); background: #fff; border-radius: 20px;
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.18); overflow: hidden;
