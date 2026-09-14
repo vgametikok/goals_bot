@@ -10,11 +10,13 @@ const cookieParser = require('cookie-parser');
 const cors = require('cors');
 const db = require('./src/db');
 const { createBot, startBot } = require('./src/bot');
+const { TOKEN_TTL_MS, signAuthToken, verifyAuthToken } = require('./src/authToken');
 
 const PORT = Number(process.env.PORT) || 3000;
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const BOT_USERNAME = (process.env.TELEGRAM_BOT_USERNAME || 'mygoals_bot').replace(/^@/, '');
 const SESSION_SECRET = process.env.SESSION_SECRET || 'dev-secret-change-me';
+const AUTH_COOKIE = 'goals_token';
 
 const defaultCorsOrigins = [
   'https://vgametikok.github.io',
@@ -65,14 +67,79 @@ app.use(
       httpOnly: true,
       sameSite: cookieSecure ? 'none' : 'lax',
       secure: cookieSecure,
-      maxAge: 30 * 24 * 60 * 60 * 1000
+      maxAge: TOKEN_TTL_MS
     }
   })
 );
 
+function authCookieOptions() {
+  return {
+    httpOnly: true,
+    sameSite: cookieSecure ? 'none' : 'lax',
+    secure: cookieSecure,
+    maxAge: TOKEN_TTL_MS,
+    path: '/'
+  };
+}
+
+function setAuthCookie(res, token) {
+  res.cookie(AUTH_COOKIE, token, authCookieOptions());
+}
+
+function clearAuthCookie(res) {
+  res.clearCookie(AUTH_COOKIE, {
+    httpOnly: true,
+    sameSite: cookieSecure ? 'none' : 'lax',
+    secure: cookieSecure,
+    path: '/'
+  });
+}
+
+function extractBearer(req) {
+  const h = req.headers && req.headers.authorization;
+  if (!h || typeof h !== 'string') return null;
+  const m = /^Bearer\s+(.+)$/i.exec(h.trim());
+  return m ? m[1].trim() : null;
+}
+
+/** Resolve userId from session, Bearer token, or goals_token cookie. */
+function resolveUserId(req) {
+  if (req.session && req.session.userId) {
+    return String(req.session.userId);
+  }
+
+  const raw = extractBearer(req) || (req.cookies && req.cookies[AUTH_COOKIE]) || null;
+  if (!raw) return null;
+
+  const verified = verifyAuthToken(raw, SESSION_SECRET);
+  if (!verified) return null;
+  return verified.userId;
+}
+
+function issueAuth(req, res, userId, cb) {
+  const token = signAuthToken(userId, SESSION_SECRET);
+  setAuthCookie(res, token);
+  req.session.userId = userId;
+  req.session.save((err) => {
+    if (err) return cb(err);
+    cb(null, token);
+  });
+}
+
 function requireAuth(req, res, next) {
-  if (!req.session || !req.session.userId) {
+  const userId = resolveUserId(req);
+  if (!userId) {
     return res.status(401).json({ error: 'unauthorized' });
+  }
+  const user = db.getUser(userId);
+  if (!user) {
+    return res.status(401).json({ error: 'unauthorized' });
+  }
+  req.userId = userId;
+  req.user = user;
+  // Keep session warm when possible
+  if (req.session && !req.session.userId) {
+    req.session.userId = userId;
   }
   next();
 }
@@ -144,13 +211,18 @@ app.get('/api/health', (req, res) => {
 });
 
 app.get('/api/me', (req, res) => {
-  if (!req.session.userId) {
+  const userId = resolveUserId(req);
+  if (!userId) {
     return res.status(401).json({ error: 'unauthorized' });
   }
-  const user = db.getUser(req.session.userId);
+  const user = db.getUser(userId);
   if (!user) {
-    req.session.destroy(() => {});
+    if (req.session) req.session.destroy(() => {});
+    clearAuthCookie(res);
     return res.status(401).json({ error: 'unauthorized' });
+  }
+  if (req.session && !req.session.userId) {
+    req.session.userId = userId;
   }
   res.json(publicUser(user));
 });
@@ -179,11 +251,10 @@ app.get('/api/auth/telegram/status', (req, res) => {
   const user = db.getUser(entry.userId);
   if (!user) return res.json({ status: 'invalid' });
 
-  req.session.userId = entry.userId;
   db.markCodeUsed(code);
-  req.session.save((err) => {
+  issueAuth(req, res, entry.userId, (err, token) => {
     if (err) return res.status(500).json({ error: 'session' });
-    res.json({ status: 'authenticated', user: publicUser(user) });
+    res.json({ status: 'authenticated', user: publicUser(user), token });
   });
 });
 
@@ -199,11 +270,10 @@ app.post('/api/auth/telegram/complete', (req, res) => {
   const user = db.getUser(entry.userId);
   if (!user) return res.status(400).json({ error: 'user missing' });
 
-  req.session.userId = entry.userId;
   db.markCodeUsed(code);
-  req.session.save((err) => {
+  issueAuth(req, res, entry.userId, (err, token) => {
     if (err) return res.status(500).json({ error: 'session' });
-    res.json({ ok: true, user: publicUser(user) });
+    res.json({ ok: true, user: publicUser(user), token });
   });
 });
 
@@ -215,14 +285,14 @@ app.post('/api/auth/telegram/widget', (req, res) => {
   }
 
   const { userId, user } = db.upsertTelegramUser(verified.telegramUser);
-  req.session.userId = userId;
-  req.session.save((err) => {
+  issueAuth(req, res, userId, (err, token) => {
     if (err) return res.status(500).json({ error: 'session' });
-    res.json({ user: publicUser(user) });
+    res.json({ user: publicUser(user), token });
   });
 });
 
 app.post('/api/auth/logout', (req, res) => {
+  clearAuthCookie(res);
   req.session.destroy(() => {
     res.clearCookie('goals.sid', {
       httpOnly: true,
@@ -234,12 +304,12 @@ app.post('/api/auth/logout', (req, res) => {
 });
 
 app.get('/api/calendar', requireAuth, (req, res) => {
-  res.json(db.getCalendar(req.session.userId));
+  res.json(db.getCalendar(req.userId));
 });
 
 app.put('/api/calendar', requireAuth, (req, res) => {
   const body = req.body || {};
-  const saved = db.setCalendar(req.session.userId, body);
+  const saved = db.setCalendar(req.userId, body);
   res.json(saved);
 });
 

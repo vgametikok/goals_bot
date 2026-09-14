@@ -1520,10 +1520,9 @@ body.is-dragging-task .app-main { touch-action: none; }
       compact: !!state.compact,
       viewMode: state.viewMode === 'month' ? 'month' : (state.viewMode === 'day' ? 'day' : 'week')
     };
-    fetch('/api/calendar', {
+    apiFetch('/api/calendar', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      credentials: 'same-origin',
       body: JSON.stringify(payload)
     }).then(function (r) {
       if (!r.ok) throw new Error('save ' + r.status);
@@ -3250,6 +3249,36 @@ body.is-dragging-task .app-main { touch-action: none; }
   var pollTimer = null;
   var calendarReady = false;
 
+  var TOKEN_KEY = 'GOALS_AUTH_TOKEN';
+  function getAuthToken() {
+    try { return localStorage.getItem(TOKEN_KEY) || ''; } catch (e) { return ''; }
+  }
+  function setAuthToken(token) {
+    try {
+      if (token) localStorage.setItem(TOKEN_KEY, token);
+      else localStorage.removeItem(TOKEN_KEY);
+    } catch (e) { /* ignore */ }
+  }
+  function clearAuthToken() { setAuthToken(''); }
+  function apiHeaders(extra) {
+    var h = extra ? Object.assign({}, extra) : {};
+    var t = getAuthToken();
+    if (t) h['Authorization'] = 'Bearer ' + t;
+    return h;
+  }
+  function apiFetch(path, opts) {
+    opts = opts || {};
+    var headers = apiHeaders(opts.headers || {});
+    return fetch(path, Object.assign({}, opts, {
+      credentials: 'same-origin',
+      headers: headers
+    })).then(function (r) {
+      if (r.status === 401) clearAuthToken();
+      return r;
+    });
+  }
+
+
   function setLoginStatus(msg, isError) {
     elLoginStatus.textContent = msg || '';
     elLoginStatus.className = 'login-status' + (isError ? ' is-error' : '');
@@ -3378,7 +3407,7 @@ body.is-dragging-task .app-main { touch-action: none; }
   }
 
   function loadCalendarAndEnter(user) {
-    return fetch('/api/calendar', { credentials: 'same-origin' })
+    return apiFetch('/api/calendar')
       .then(function (r) {
         if (!r.ok) throw new Error('calendar');
         return r.json();
@@ -3396,9 +3425,8 @@ body.is-dragging-task .app-main { touch-action: none; }
   function startTelegramLogin() {
     elBtnTelegram.disabled = true;
     setLoginStatus('Создаём ссылку…');
-    fetch('/api/auth/telegram/start', {
+    apiFetch('/api/auth/telegram/start', {
       method: 'POST',
-      credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
       body: '{}'
     })
@@ -3419,11 +3447,12 @@ body.is-dragging-task .app-main { touch-action: none; }
             setLoginStatus('Время ожидания истекло. Попробуйте ещё раз.', true);
             return;
           }
-          fetch('/api/auth/telegram/status?code=' + encodeURIComponent(code), { credentials: 'same-origin' })
+          apiFetch('/api/auth/telegram/status?code=' + encodeURIComponent(code))
             .then(function (r) { return r.json(); })
             .then(function (st) {
               if (st.status === 'authenticated' && st.user) {
                 stopPoll();
+                if (st.token) setAuthToken(st.token);
                 setLoginStatus('Вход выполнен…');
                 return loadCalendarAndEnter(st.user);
               }
@@ -3444,19 +3473,19 @@ body.is-dragging-task .app-main { touch-action: none; }
 
   elBtnTelegram.addEventListener('click', startTelegramLogin);
   elBtnLogout.addEventListener('click', function () {
-    fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' })
-      .then(function () { showLogin(); })
-      .catch(function () { showLogin(); });
+    apiFetch('/api/auth/logout', { method: 'POST' })
+      .then(function () { clearAuthToken(); showLogin(); })
+      .catch(function () { clearAuthToken(); showLogin(); });
   });
 
-  // Session restore
-  fetch('/api/me', { credentials: 'same-origin' })
+  // Session / long-lived token restore
+  apiFetch('/api/me')
     .then(function (r) {
       if (!r.ok) throw new Error('no session');
       return r.json();
     })
     .then(function (user) { return loadCalendarAndEnter(user); })
-    .catch(function () { showLogin(); });
+    .catch(function () { clearAuthToken(); showLogin(); });
 
 })();
 </script>

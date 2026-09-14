@@ -1542,10 +1542,9 @@ body.is-dragging-task .app-main { touch-action: none; }
     if (!apiSession) return;
     if (apiSaveInFlight) { apiSaveQueued = true; return; }
     apiSaveInFlight = true;
-    fetch(API_BASE + '/api/calendar', {
+    apiFetch('/api/calendar', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
       body: JSON.stringify(calendarPayload())
     }).then(function (r) {
       if (!r.ok) throw new Error('save ' + r.status);
@@ -3385,6 +3384,35 @@ body.is-dragging-task .app-main { touch-action: none; }
     return 'https://goals-bot.onrender.com';
   })();
   var apiSession = false;
+
+  var TOKEN_KEY = 'GOALS_AUTH_TOKEN';
+  function getAuthToken() {
+    try { return localStorage.getItem(TOKEN_KEY) || ''; } catch (e) { return ''; }
+  }
+  function setAuthToken(token) {
+    try {
+      if (token) localStorage.setItem(TOKEN_KEY, token);
+      else localStorage.removeItem(TOKEN_KEY);
+    } catch (e) { /* ignore */ }
+  }
+  function clearAuthToken() { setAuthToken(''); }
+  function apiHeaders(extra) {
+    var h = extra ? Object.assign({}, extra) : {};
+    var t = getAuthToken();
+    if (t) h['Authorization'] = 'Bearer ' + t;
+    return h;
+  }
+  function apiFetch(path, opts) {
+    opts = opts || {};
+    var headers = apiHeaders(opts.headers || {});
+    return fetch(API_BASE + path, Object.assign({}, opts, {
+      credentials: 'include',
+      headers: headers
+    })).then(function (r) {
+      if (r.status === 401) clearAuthToken();
+      return r;
+    });
+  }
   var elBtnLogin = document.getElementById('btn-login');
   var elBtnLogout = document.getElementById('btn-logout');
   var elUserChip = document.getElementById('user-chip');
@@ -3476,7 +3504,7 @@ body.is-dragging-task .app-main { touch-action: none; }
   }
 
   function fetchCalendarAndApply() {
-    return fetch(API_BASE + '/api/calendar', { credentials: 'include' })
+    return apiFetch('/api/calendar')
       .then(function (r) {
         if (!r.ok) throw new Error('calendar ' + r.status);
         return r.json();
@@ -3490,7 +3518,8 @@ body.is-dragging-task .app-main { touch-action: none; }
       });
   }
 
-  function enterApiSession(user) {
+  function enterApiSession(user, token) {
+    if (token) setAuthToken(token);
     apiSession = true;
     writeAuthUser({
       telegramId: user.telegramId,
@@ -3507,10 +3536,9 @@ body.is-dragging-task .app-main { touch-action: none; }
 
   window.onTelegramAuth = function (user) {
     setLoginApiError('');
-    fetch(API_BASE + '/api/auth/telegram/widget', {
+    apiFetch('/api/auth/telegram/widget', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
       body: JSON.stringify({
         id: user.id,
         first_name: user.first_name,
@@ -3533,7 +3561,7 @@ body.is-dragging-task .app-main { touch-action: none; }
       })
       .then(function (data) {
         if (!data || !data.user) throw new Error('no user');
-        return enterApiSession(data.user);
+        return enterApiSession(data.user, data.token);
       })
       .catch(function (err) {
         console.warn('[goals] widget auth failed', err);
@@ -3561,6 +3589,7 @@ body.is-dragging-task .app-main { touch-action: none; }
   if (elBtnLogout) elBtnLogout.addEventListener('click', function () {
     var finish = function () {
       apiSession = false;
+      clearAuthToken();
       writeAuthUser(null);
       // restore offline local calendar
       var loaded = loadState();
@@ -3574,7 +3603,7 @@ body.is-dragging-task .app-main { touch-action: none; }
       refreshAuthUI();
       render();
     };
-    fetch(API_BASE + '/api/auth/logout', { method: 'POST', credentials: 'include' })
+    apiFetch('/api/auth/logout', { method: 'POST' })
       .then(function () { finish(); })
       .catch(function () { finish(); });
   });
@@ -3617,8 +3646,8 @@ body.is-dragging-task .app-main { touch-action: none; }
   render();
   refreshAuthUI();
 
-  // Try restore cross-origin session
-  fetch(API_BASE + '/api/me', { credentials: 'include' })
+  // Try restore long-lived token / cookie session (survives Render sleep)
+  apiFetch('/api/me')
     .then(function (r) {
       if (!r.ok) throw new Error('no session');
       return r.json();
@@ -3627,6 +3656,7 @@ body.is-dragging-task .app-main { touch-action: none; }
       return enterApiSession(user);
     })
     .catch(function () {
+      clearAuthToken();
       // stay on localStorage calendar
       refreshAuthUI();
     });
