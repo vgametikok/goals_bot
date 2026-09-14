@@ -90,3 +90,14 @@ git push -u origin main
 - Grammy (Telegram)
 - express-session (cookie)
 - Статика из `public/`
+
+## GitHub Pages
+
+Статическая версия календаря лежит в `docs/` (откроется без сервера).
+
+1. Settings → Pages → Source: **Deploy from a branch**
+2. Branch: **main**, folder: **/docs**
+3. Save → сайт: https://vgametikok.github.io/goals_bot/
+
+На Pages нет Node и Telegram-логина — только календарь с `localStorage`. Полный стек с ботом: `npm start` локально или хостинг вроде Render/Railway.
+
