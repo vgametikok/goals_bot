@@ -96,6 +96,33 @@ function getLoginCode(code) {
   return store.loginCodes[code] || null;
 }
 
+/** Upsert Telegram user from widget or bot payload (id / first_name / …). */
+function upsertTelegramUser(telegramUser) {
+  const store = load();
+  const telegramId = String(telegramUser.id);
+  let user = store.users[telegramId];
+  if (!user) {
+    user = {
+      telegramId,
+      username: telegramUser.username || null,
+      firstName: telegramUser.first_name || null,
+      lastName: telegramUser.last_name || null,
+      photoUrl: telegramUser.photo_url || null,
+      createdAt: new Date().toISOString()
+    };
+    store.users[telegramId] = user;
+    store.calendars[telegramId] = JSON.parse(JSON.stringify(DEFAULT_CALENDAR));
+  } else {
+    user.username = telegramUser.username || user.username;
+    user.firstName = telegramUser.first_name || user.firstName;
+    user.lastName = telegramUser.last_name || user.lastName;
+    if (telegramUser.photo_url) user.photoUrl = telegramUser.photo_url;
+    user.updatedAt = new Date().toISOString();
+  }
+  save(store);
+  return { userId: telegramId, user };
+}
+
 function consumeLoginCode(code, telegramUser) {
   const store = load();
   cleanupExpiredCodes(store);
@@ -110,30 +137,16 @@ function consumeLoginCode(code, telegramUser) {
     return { ok: true, userId: entry.userId, already: true };
   }
 
-  const telegramId = String(telegramUser.id);
-  let user = store.users[telegramId];
-  if (!user) {
-    user = {
-      telegramId,
-      username: telegramUser.username || null,
-      firstName: telegramUser.first_name || null,
-      lastName: telegramUser.last_name || null,
-      createdAt: new Date().toISOString()
-    };
-    store.users[telegramId] = user;
-    store.calendars[telegramId] = JSON.parse(JSON.stringify(DEFAULT_CALENDAR));
-  } else {
-    user.username = telegramUser.username || user.username;
-    user.firstName = telegramUser.first_name || user.firstName;
-    user.lastName = telegramUser.last_name || user.lastName;
-    user.updatedAt = new Date().toISOString();
-  }
-
-  entry.status = 'authenticated';
-  entry.userId = telegramId;
-  entry.authenticatedAt = Date.now();
-  save(store);
-  return { ok: true, userId: telegramId, user };
+  const { userId, user } = upsertTelegramUser(telegramUser);
+  // reload entry after upsert (upsert saves its own store)
+  const store2 = load();
+  const entry2 = store2.loginCodes[code];
+  if (!entry2) return { ok: false, reason: 'invalid' };
+  entry2.status = 'authenticated';
+  entry2.userId = userId;
+  entry2.authenticatedAt = Date.now();
+  save(store2);
+  return { ok: true, userId, user };
 }
 
 function markCodeUsed(code) {
@@ -178,6 +191,7 @@ module.exports = {
   createLoginCode,
   getLoginCode,
   consumeLoginCode,
+  upsertTelegramUser,
   markCodeUsed,
   getUser,
   getCalendar,

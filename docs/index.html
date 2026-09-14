@@ -593,6 +593,7 @@ button, input, select, textarea { font: inherit; }
     <h2 id="login-title">Вход через Telegram</h2>
     <p class="hint">Авторизация через бота <a href="https://t.me/mygoals_bot" target="_blank" rel="noopener">@mygoals_bot</a>. Нажмите кнопку ниже и подтвердите в Telegram.</p>
     <div class="tg-box" id="tg-login-widget"></div>
+    <p class="hint login-api-error" id="login-api-error" hidden style="color:#b91c1c;"></p>
     <p class="hint">Если кнопка Telegram не появилась: в <a href="https://t.me/BotFather" target="_blank" rel="noopener">@BotFather</a> выполните <code>/setdomain</code> → бот <code>mygoals_bot</code> → домен <code>vgametikok.github.io</code>.</p>
     <div class="modal-actions">
       <button type="button" class="btn btn--ghost" data-close-login>Закрыть</button>
@@ -1060,16 +1061,89 @@ button, input, select, textarea { font: inherit; }
     return { categories: categories, badges: badges, tasks: tasks, compact: compact, viewMode: viewMode };
   }
 
-  function saveState() {
+  function calendarPayload() {
+    return {
+      categories: state.categories,
+      badges: state.badges,
+      tasks: state.tasks,
+      compact: !!state.compact,
+      viewMode: state.viewMode === 'month' ? 'month' : (state.viewMode === 'day' ? 'day' : 'week')
+    };
+  }
+
+  function saveStateLocal() {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({
-        categories: state.categories,
-        badges: state.badges,
-        tasks: state.tasks,
-        compact: !!state.compact,
-        viewMode: state.viewMode === 'month' ? 'month' : (state.viewMode === 'day' ? 'day' : 'week')
-      }));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(calendarPayload()));
     } catch (e) { /* ignore quota / private mode */ }
+  }
+
+  var apiSaveTimer = null;
+  var apiSaveInFlight = false;
+  var apiSaveQueued = false;
+
+  function flushApiSave() {
+    apiSaveTimer = null;
+    if (!apiSession) return;
+    if (apiSaveInFlight) { apiSaveQueued = true; return; }
+    apiSaveInFlight = true;
+    fetch(API_BASE + '/api/calendar', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(calendarPayload())
+    }).then(function (r) {
+      if (!r.ok) throw new Error('save ' + r.status);
+    }).catch(function (err) {
+      console.warn('[goals] calendar save failed', err);
+    }).finally(function () {
+      apiSaveInFlight = false;
+      if (apiSaveQueued) { apiSaveQueued = false; flushApiSave(); }
+    });
+  }
+
+  function saveState() {
+    if (apiSession) {
+      if (apiSaveTimer) clearTimeout(apiSaveTimer);
+      apiSaveTimer = setTimeout(flushApiSave, 500);
+      return;
+    }
+    saveStateLocal();
+  }
+
+  function applyCalendarData(data) {
+    var loaded = (function (parsed) {
+      var categories = cloneDefaults(DEFAULT_CATEGORIES);
+      var badges = cloneDefaults(DEFAULT_BADGES);
+      var tasks = [];
+      var compact = false;
+      var viewMode = 'week';
+      if (parsed && typeof parsed === 'object') {
+        if (Array.isArray(parsed.categories) && parsed.categories.length) {
+          categories = parsed.categories.map(normalizeCategory).filter(Boolean);
+        }
+        if (Array.isArray(parsed.badges)) {
+          badges = parsed.badges.map(normalizeBadge).filter(Boolean);
+        }
+        if (Array.isArray(parsed.tasks)) tasks = parsed.tasks;
+        if (typeof parsed.compact === 'boolean') compact = parsed.compact;
+        if (parsed.viewMode === 'week' || parsed.viewMode === 'day' || parsed.viewMode === 'month') {
+          viewMode = parsed.viewMode;
+        }
+      }
+      if (!categories.length) categories = cloneDefaults(DEFAULT_CATEGORIES);
+      if (!badges.length) badges = cloneDefaults(DEFAULT_BADGES);
+      if (!tasks.length) tasks = createSeedTasks();
+      tasks = tasks.map(function (t) { return normalizeTask(t, categories, badges); }).filter(Boolean);
+      return { categories: categories, badges: badges, tasks: tasks, compact: compact, viewMode: viewMode };
+    })(data || {});
+    state.tasks = loaded.tasks;
+    state.categories = loaded.categories;
+    state.badges = loaded.badges;
+    state.compact = !!loaded.compact;
+    state.category = loaded.categories[0] ? loaded.categories[0].id : 'school';
+    state.viewMode = (loaded.viewMode === 'month' || loaded.viewMode === 'day') ? loaded.viewMode : 'week';
+    state.previousScheduleMode = loaded.viewMode === 'day' ? 'day' : 'week';
+    rebuildMaps();
   }
 
   function rebuildMaps() {
@@ -2436,13 +2510,33 @@ button, input, select, textarea { font: inherit; }
   });
 
 
-  // ── Telegram login (Login Widget → localStorage; needs BotFather /setdomain) ──
+  // ── Telegram login (Pages → Render API + Login Widget) ──
   var AUTH_KEY = 'goals-telegram-user-v1';
+  var API_BASE = (function () {
+    try {
+      var override = localStorage.getItem('GOALS_API');
+      if (override) return String(override).replace(/\/$/, '');
+    } catch (e) { /* ignore */ }
+    return 'https://goals-bot.onrender.com';
+  })();
+  var apiSession = false;
   var elBtnLogin = document.getElementById('btn-login');
   var elBtnLogout = document.getElementById('btn-logout');
   var elUserChip = document.getElementById('user-chip');
   var elLoginModal = document.getElementById('login-modal');
   var elTgBox = document.getElementById('tg-login-widget');
+  var elLoginApiError = document.getElementById('login-api-error');
+
+  function setLoginApiError(msg) {
+    if (!elLoginApiError) return;
+    if (msg) {
+      elLoginApiError.hidden = false;
+      elLoginApiError.textContent = msg;
+    } else {
+      elLoginApiError.hidden = true;
+      elLoginApiError.textContent = '';
+    }
+  }
 
   function readAuthUser() {
     try {
@@ -2454,16 +2548,30 @@ button, input, select, textarea { font: inherit; }
     if (!user) localStorage.removeItem(AUTH_KEY);
     else localStorage.setItem(AUTH_KEY, JSON.stringify(user));
   }
+
+  function displayNameFromUser(user) {
+    if (!user) return 'Telegram';
+    if (user.name) return user.name;
+    var label = user.firstName || user.first_name || '';
+    var last = user.lastName || user.last_name || '';
+    if (last) label += (label ? ' ' : '') + last;
+    if (!label && (user.username)) label = '@' + user.username;
+    if (!label) label = 'Telegram';
+    return label;
+  }
+
   function refreshAuthUI() {
     var user = readAuthUser();
-    if (user) {
-      var label = user.first_name || '';
-      if (user.last_name) label += (label ? ' ' : '') + user.last_name;
-      if (!label && user.username) label = '@' + user.username;
-      if (!label) label = 'Telegram';
-      elUserChip.textContent = label;
+    if (user && apiSession) {
+      elUserChip.textContent = displayNameFromUser(user);
       elUserChip.hidden = false;
       elBtnLogin.hidden = true;
+      elBtnLogout.hidden = false;
+    } else if (user && !apiSession) {
+      // local-only identity (offline) — show chip but still allow login to sync
+      elUserChip.textContent = displayNameFromUser(user) + ' (локально)';
+      elUserChip.hidden = false;
+      elBtnLogin.hidden = false;
       elBtnLogout.hidden = false;
     } else {
       elUserChip.hidden = true;
@@ -2471,12 +2579,13 @@ button, input, select, textarea { font: inherit; }
       elBtnLogout.hidden = true;
     }
   }
+
   function closeLoginModal() {
     if (elLoginModal) elLoginModal.hidden = true;
   }
   function openLoginModal() {
+    setLoginApiError('');
     elLoginModal.hidden = false;
-    // (re)inject Telegram Login Widget
     elTgBox.innerHTML = '';
     var s = document.createElement('script');
     s.async = true;
@@ -2487,41 +2596,152 @@ button, input, select, textarea { font: inherit; }
     s.setAttribute('data-request-access', 'write');
     s.setAttribute('data-onauth', 'onTelegramAuth(user)');
     elTgBox.appendChild(s);
+
+    // Soft health check so user sees sleeping-server hint early
+    fetch(API_BASE + '/api/health', { credentials: 'include', mode: 'cors' })
+      .then(function (r) {
+        if (!r.ok) throw new Error('health');
+      })
+      .catch(function () {
+        setLoginApiError(
+          'Сервер API недоступен (возможно, Render Free спит или ещё не задеплоен). ' +
+          'Подождите ~30–60 с и попробуйте снова. URL: ' + API_BASE
+        );
+      });
   }
-  window.onTelegramAuth = function (user) {
-    // Widget signs data with bot token; for static Pages we store identity for UI/tests.
+
+  function fetchCalendarAndApply() {
+    return fetch(API_BASE + '/api/calendar', { credentials: 'include' })
+      .then(function (r) {
+        if (!r.ok) throw new Error('calendar ' + r.status);
+        return r.json();
+      })
+      .then(function (cal) {
+        applyCalendarData(cal || {});
+        // If empty server calendar, seed once and push
+        if (!cal || !Array.isArray(cal.tasks) || !cal.tasks.length) {
+          saveState();
+        }
+        state.scrollToDefaultHour = true;
+        render();
+      });
+  }
+
+  function enterApiSession(user) {
+    apiSession = true;
     writeAuthUser({
-      id: user.id,
-      first_name: user.first_name,
-      last_name: user.last_name || '',
+      telegramId: user.telegramId,
       username: user.username || '',
-      photo_url: user.photo_url || '',
-      auth_date: user.auth_date,
-      hash: user.hash
+      name: user.name || '',
+      firstName: user.firstName || user.first_name || '',
+      lastName: user.lastName || user.last_name || ''
     });
-    closeLoginModal();
     refreshAuthUI();
+    closeLoginModal();
+    return fetchCalendarAndApply();
+  }
+
+  window.onTelegramAuth = function (user) {
+    setLoginApiError('');
+    fetch(API_BASE + '/api/auth/telegram/widget', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({
+        id: user.id,
+        first_name: user.first_name,
+        last_name: user.last_name || '',
+        username: user.username || '',
+        photo_url: user.photo_url || '',
+        auth_date: user.auth_date,
+        hash: user.hash
+      })
+    })
+      .then(function (r) {
+        if (!r.ok) {
+          return r.json().catch(function () { return {}; }).then(function (body) {
+            var err = new Error((body && body.error) || ('http ' + r.status));
+            err.status = r.status;
+            throw err;
+          });
+        }
+        return r.json();
+      })
+      .then(function (data) {
+        if (!data || !data.user) throw new Error('no user');
+        return enterApiSession(data.user);
+      })
+      .catch(function (err) {
+        console.warn('[goals] widget auth failed', err);
+        // Offline fallback: keep identity in localStorage only
+        writeAuthUser({
+          id: user.id,
+          first_name: user.first_name,
+          last_name: user.last_name || '',
+          username: user.username || '',
+          photo_url: user.photo_url || '',
+          auth_date: user.auth_date,
+          hash: user.hash
+        });
+        apiSession = false;
+        refreshAuthUI();
+        setLoginApiError(
+          'Не удалось связаться с сервером API (' + API_BASE + '). ' +
+          'Частая причина на Render Free — сервис спит или ещё не задеплоен. ' +
+          'Подождите минуту и войдите снова. Данные пока только локально в браузере.'
+        );
+      });
   };
+
   if (elBtnLogin) elBtnLogin.addEventListener('click', openLoginModal);
   if (elBtnLogout) elBtnLogout.addEventListener('click', function () {
-    writeAuthUser(null);
-    refreshAuthUI();
+    var finish = function () {
+      apiSession = false;
+      writeAuthUser(null);
+      // restore offline local calendar
+      var loaded = loadState();
+      state.tasks = loaded.tasks;
+      state.categories = loaded.categories;
+      state.badges = loaded.badges;
+      state.compact = !!loaded.compact;
+      state.category = loaded.categories[0] ? loaded.categories[0].id : 'school';
+      state.viewMode = (loaded.viewMode === 'month' || loaded.viewMode === 'day') ? loaded.viewMode : 'week';
+      rebuildMaps();
+      refreshAuthUI();
+      render();
+    };
+    fetch(API_BASE + '/api/auth/logout', { method: 'POST', credentials: 'include' })
+      .then(function () { finish(); })
+      .catch(function () { finish(); });
   });
   if (elLoginModal) {
     elLoginModal.addEventListener('click', function (e) {
       if (e.target && e.target.hasAttribute('data-close-login')) closeLoginModal();
     });
   }
-  var _prevEsc = document.onkeydown;
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape' && elLoginModal && !elLoginModal.hidden) closeLoginModal();
   });
-  refreshAuthUI();
 
   // ── Boot ───────────────────────────────────────────────────
   initFormSelects();
   state.scrollToDefaultHour = true;
   render();
+  refreshAuthUI();
+
+  // Try restore cross-origin session
+  fetch(API_BASE + '/api/me', { credentials: 'include' })
+    .then(function (r) {
+      if (!r.ok) throw new Error('no session');
+      return r.json();
+    })
+    .then(function (user) {
+      return enterApiSession(user);
+    })
+    .catch(function () {
+      // stay on localStorage calendar
+      refreshAuthUI();
+    });
 })();
 </script>
 </body>

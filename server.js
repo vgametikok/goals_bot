@@ -3,9 +3,11 @@
 require('dotenv').config();
 
 const path = require('path');
+const crypto = require('crypto');
 const express = require('express');
 const session = require('express-session');
 const cookieParser = require('cookie-parser');
+const cors = require('cors');
 const db = require('./src/db');
 const { createBot, startBot } = require('./src/bot');
 
@@ -13,6 +15,21 @@ const PORT = Number(process.env.PORT) || 3000;
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const BOT_USERNAME = (process.env.TELEGRAM_BOT_USERNAME || 'mygoals_bot').replace(/^@/, '');
 const SESSION_SECRET = process.env.SESSION_SECRET || 'dev-secret-change-me';
+
+const defaultCorsOrigins = [
+  'https://vgametikok.github.io',
+  'http://localhost:3000'
+];
+const corsOrigins = (process.env.CORS_ORIGINS || '')
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean);
+const allowedOrigins = corsOrigins.length
+  ? Array.from(new Set([...corsOrigins, 'http://localhost:3000']))
+  : defaultCorsOrigins;
+
+const cookieSecure =
+  process.env.COOKIE_SECURE === '1' || process.env.NODE_ENV === 'production';
 
 if (!BOT_TOKEN) {
   console.error('TELEGRAM_BOT_TOKEN is required in .env');
@@ -23,6 +40,19 @@ const app = express();
 const bot = createBot(BOT_TOKEN);
 
 app.set('trust proxy', 1);
+
+app.use(
+  cors({
+    origin(origin, cb) {
+      // Allow non-browser / same-origin requests (no Origin header)
+      if (!origin) return cb(null, true);
+      if (allowedOrigins.includes(origin)) return cb(null, true);
+      return cb(null, false);
+    },
+    credentials: true
+  })
+);
+
 app.use(cookieParser());
 app.use(express.json({ limit: '2mb' }));
 app.use(
@@ -33,8 +63,8 @@ app.use(
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      sameSite: 'lax',
-      secure: process.env.COOKIE_SECURE === '1',
+      sameSite: cookieSecure ? 'none' : 'lax',
+      secure: cookieSecure,
       maxAge: 30 * 24 * 60 * 60 * 1000
     }
   })
@@ -58,6 +88,60 @@ function publicUser(user) {
     lastName: user.lastName
   };
 }
+
+/** Verify Telegram Login Widget payload (HMAC-SHA-256). */
+function verifyTelegramWidgetAuth(payload, botToken) {
+  if (!payload || typeof payload !== 'object') return { ok: false, error: 'invalid' };
+  const hash = String(payload.hash || '');
+  if (!hash) return { ok: false, error: 'hash missing' };
+
+  const authDate = Number(payload.auth_date);
+  if (!Number.isFinite(authDate)) return { ok: false, error: 'auth_date' };
+  const ageSec = Math.floor(Date.now() / 1000) - authDate;
+  if (ageSec > 86400) return { ok: false, error: 'expired' };
+  if (ageSec < -60) return { ok: false, error: 'auth_date' };
+
+  const fields = {};
+  for (const key of Object.keys(payload)) {
+    if (key === 'hash') continue;
+    const val = payload[key];
+    if (val === undefined || val === null || val === '') continue;
+    fields[key] = String(val);
+  }
+  if (!fields.id) return { ok: false, error: 'id missing' };
+
+  const dataCheckString = Object.keys(fields)
+    .sort()
+    .map((k) => k + '=' + fields[k])
+    .join('\n');
+
+  const secretKey = crypto.createHash('sha256').update(botToken).digest();
+  const computed = crypto
+    .createHmac('sha256', secretKey)
+    .update(dataCheckString)
+    .digest('hex');
+
+  const a = Buffer.from(computed, 'hex');
+  const b = Buffer.from(hash, 'hex');
+  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
+    return { ok: false, error: 'bad hash' };
+  }
+
+  return {
+    ok: true,
+    telegramUser: {
+      id: fields.id,
+      first_name: fields.first_name || null,
+      last_name: fields.last_name || null,
+      username: fields.username || null,
+      photo_url: fields.photo_url || null
+    }
+  };
+}
+
+app.get('/api/health', (req, res) => {
+  res.json({ ok: true });
+});
 
 app.get('/api/me', (req, res) => {
   if (!req.session.userId) {
@@ -123,9 +207,28 @@ app.post('/api/auth/telegram/complete', (req, res) => {
   });
 });
 
+app.post('/api/auth/telegram/widget', (req, res) => {
+  const verified = verifyTelegramWidgetAuth(req.body || {}, BOT_TOKEN);
+  if (!verified.ok) {
+    const status = verified.error === 'expired' ? 401 : 403;
+    return res.status(status).json({ error: verified.error || 'unauthorized' });
+  }
+
+  const { userId, user } = db.upsertTelegramUser(verified.telegramUser);
+  req.session.userId = userId;
+  req.session.save((err) => {
+    if (err) return res.status(500).json({ error: 'session' });
+    res.json({ user: publicUser(user) });
+  });
+});
+
 app.post('/api/auth/logout', (req, res) => {
   req.session.destroy(() => {
-    res.clearCookie('goals.sid');
+    res.clearCookie('goals.sid', {
+      httpOnly: true,
+      sameSite: cookieSecure ? 'none' : 'lax',
+      secure: cookieSecure
+    });
     res.json({ ok: true });
   });
 });
@@ -162,19 +265,28 @@ app.use((req, res, next) => {
 });
 
 async function main() {
+  // Bind HTTP first so Render Free health checks / PORT bind succeed even if bot is slow.
+  await new Promise((resolve, reject) => {
+    const server = app.listen(PORT, () => {
+      console.log(`[server] listening on :${PORT}`);
+      resolve(server);
+    });
+    server.on('error', reject);
+  });
+
   try {
     const me = await bot.api.getMe();
     console.log('[bot] getMe ok: @' + me.username + ' id=' + me.id);
   } catch (e) {
-    console.error('[bot] getMe failed:', e.message || e);
-    process.exit(1);
+    console.error('[bot] getMe failed (continuing; bot may be unavailable):', e.message || e);
   }
 
-  const mode = await startBot(bot);
-
-  app.listen(PORT, () => {
-    console.log(`[server] http://localhost:${PORT} (bot: ${mode.mode})`);
-  });
+  try {
+    const mode = await startBot(bot);
+    console.log('[bot] started mode=' + mode.mode);
+  } catch (e) {
+    console.error('[bot] startBot failed (HTTP still up for API):', e.message || e);
+  }
 }
 
 main().catch((err) => {
