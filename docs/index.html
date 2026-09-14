@@ -608,6 +608,17 @@ button, input, select, textarea { font: inherit; }
 }
 .login-modal .login-bot-hint a { color: #2AABEE; font-weight: 600; }
 
+
+.login-logo {
+  display: block;
+  width: min(280px, 78%);
+  height: auto;
+  margin: 0 auto 22px;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+.login-card { text-align: center; }
+.login-card .btn--telegram { width: 100%; justify-content: center; }
 </style>
 </head>
 <body>
@@ -648,7 +659,7 @@ button, input, select, textarea { font: inherit; }
 <div class="modal login-modal" id="login-modal" hidden>
   <div class="modal-backdrop" data-close-login></div>
   <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="login-title">
-    <h1 class="brand-wordmark brand-wordmark--sm" id="login-title">MYGOALS</h1>
+    <img class="login-logo" src="assets/mygoals-logo.png" alt="MYGOALS" width="560" height="315" />
     <p class="login-bot-hint">Бот: <a href="https://t.me/mygoals_bot" target="_blank" rel="noopener">@mygoals_bot</a></p>
     <div class="tg-box" id="tg-login-widget"></div>
     <p class="hint login-api-error" id="login-api-error" hidden style="color:#b91c1c;"></p>

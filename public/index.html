@@ -631,13 +631,24 @@ button, input, select, textarea { font: inherit; }
 }
 .tab.tab--empty:hover { filter: none; transform: none; }
 
+
+.login-logo {
+  display: block;
+  width: min(280px, 78%);
+  height: auto;
+  margin: 0 auto 22px;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+.login-card { text-align: center; }
+.login-card .btn--telegram { width: 100%; justify-content: center; }
 </style>
 </head>
 <body>
 
 <div class="login-screen" id="login-screen">
   <div class="login-card">
-    <h1 class="brand-wordmark">MYGOALS</h1>
+    <img class="login-logo" src="assets/mygoals-logo.png" alt="MYGOALS" width="560" height="315" />
     <button type="button" class="btn btn--telegram" id="btn-telegram-login">
       <span aria-hidden="true">✈️</span> Войти через Telegram
     </button>
