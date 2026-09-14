@@ -911,6 +911,12 @@ body.is-dragging-task .app-main { touch-action: none; }
   display: inline-flex; align-items: center; gap: 8px; cursor: pointer;
 }
 .login-card .btn--telegram:hover { filter: brightness(1.05); }
+.login-status {
+  margin-top: 18px; min-height: 1.4em;
+  font-size: 0.9rem; color: #6b7280;
+}
+.login-status.is-error { color: #b91c1c; }
+.login-status a { color: #2AABEE; font-weight: 600; }
 .login-hint { margin-top: 14px; font-size: 0.8rem; color: #6b7280; }
 .app[hidden] { display: none !important; }
 
@@ -945,7 +951,9 @@ body.is-dragging-task .app-main { touch-action: none; }
     <button type="button" class="btn btn--telegram" id="btn-telegram-login">
       <span aria-hidden="true">✈️</span> Войти через Telegram
     </button>
-    <p class="login-hint">Бот: @mygoals_bot</p>
+    <div class="login-status" id="login-status" aria-live="polite"></div>
+    <p class="login-hint">Бот: @mygoals_bot · на телефоне откроется бот</p>
+    <p class="login-hint" style="margin-top:6px"><button type="button" class="btn btn--ghost" id="btn-widget-login" style="font-size:0.85rem">Виджет (только ПК)</button></p>
   </div>
 </div>
 
@@ -3620,6 +3628,29 @@ body.is-dragging-task .app-main { touch-action: none; }
   var elLoginScreen = document.getElementById('login-screen');
   var elAppRoot = document.getElementById('app-root') || document.querySelector('.app');
   var elBtnTelegramLogin = document.getElementById('btn-telegram-login');
+  var elBtnWidgetLogin = document.getElementById('btn-widget-login');
+  var elLoginStatus = document.getElementById('login-status');
+  var pagesPollTimer = null;
+  var pagesPendingCode = null;
+  var pagesPollInFlight = false;
+  var PAGES_PENDING_KEY = 'GOALS_PENDING_LOGIN_CODE';
+
+  function rememberPagesCode(code) {
+    pagesPendingCode = code || null;
+    try {
+      if (code) sessionStorage.setItem(PAGES_PENDING_KEY, code);
+      else sessionStorage.removeItem(PAGES_PENDING_KEY);
+    } catch (e) { /* ignore */ }
+  }
+  function restorePagesCode() {
+    if (pagesPendingCode) return pagesPendingCode;
+    try {
+      var c = sessionStorage.getItem(PAGES_PENDING_KEY);
+      if (c) pagesPendingCode = c;
+    } catch (e) { /* ignore */ }
+    return pagesPendingCode;
+  }
+
   function showAppLoggedIn(on) {
     if (elLoginScreen) elLoginScreen.hidden = !!on;
     if (elAppRoot) elAppRoot.hidden = !on;
@@ -3633,11 +3664,130 @@ body.is-dragging-task .app-main { touch-action: none; }
       showAppLoggedIn(!!u);
     };
   }
+
+  function setPagesLoginStatus(msg, isError) {
+    if (!elLoginStatus) return;
+    if (msg && msg.indexOf('<') >= 0) {
+      elLoginStatus.className = 'login-status' + (isError ? ' is-error' : '');
+      elLoginStatus.innerHTML = msg;
+    } else {
+      elLoginStatus.textContent = msg || '';
+      elLoginStatus.className = 'login-status' + (isError ? ' is-error' : '');
+    }
+  }
+
+  function stopPagesPoll() {
+    if (pagesPollTimer) { clearInterval(pagesPollTimer); pagesPollTimer = null; }
+    rememberPagesCode(null);
+    pagesPollInFlight = false;
+  }
+
+  function openBotLink(loginUrl) {
+    var opened = null;
+    try { opened = window.open(loginUrl, '_blank', 'noopener'); } catch (e) { opened = null; }
+    if (!opened || opened.closed) {
+      try { window.location.assign(loginUrl); } catch (e2) { /* ignore */ }
+    }
+  }
+
+  function handlePagesStatus(st) {
+    if (st.status === 'authenticated' && st.user) {
+      stopPagesPoll();
+      setPagesLoginStatus('Вход выполнен…');
+      return enterApiSession(st.user, st.token).then(function () {
+        showAppLoggedIn(true);
+      }).catch(function (err) {
+        console.warn('[goals] calendar after bot login', err);
+        if (elBtnTelegramLogin) elBtnTelegramLogin.disabled = false;
+        setPagesLoginStatus('Не удалось загрузить календарь. Попробуйте ещё раз.', true);
+      });
+    }
+    if (st.status === 'expired' || st.status === 'invalid') {
+      stopPagesPoll();
+      if (elBtnTelegramLogin) elBtnTelegramLogin.disabled = false;
+      setPagesLoginStatus('Код истёк. Запросите новый.', true);
+    }
+  }
+
+  function pollPagesLoginOnce() {
+    if (!pagesPendingCode || pagesPollInFlight) return;
+    pagesPollInFlight = true;
+    var code = pagesPendingCode;
+    apiFetch('/api/auth/telegram/status?code=' + encodeURIComponent(code))
+      .then(function (r) { return r.json(); })
+      .then(function (st) {
+        if (pagesPendingCode !== code) return;
+        handlePagesStatus(st);
+      })
+      .catch(function () { /* keep polling */ })
+      .then(function () { pagesPollInFlight = false; });
+  }
+
+  function startBotDeepLinkLogin() {
+    if (elBtnTelegramLogin) elBtnTelegramLogin.disabled = true;
+    setPagesLoginStatus('Создаём ссылку…');
+    apiFetch('/api/auth/telegram/start', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}'
+    })
+      .then(function (r) {
+        if (!r.ok) throw new Error('start ' + r.status);
+        return r.json();
+      })
+      .then(function (data) {
+        if (!data.loginUrl || !data.code) throw new Error('no url');
+        rememberPagesCode(data.code);
+        setPagesLoginStatus(
+          'Откройте бота и подтвердите вход: <a href="' + data.loginUrl +
+          '" rel="noopener">@mygoals_bot</a><br>' +
+          '<span style="display:block;margin-top:8px">Вернитесь на эту вкладку после подтверждения в боте</span>'
+        );
+        openBotLink(data.loginUrl);
+        var tries = 0;
+        if (pagesPollTimer) { clearInterval(pagesPollTimer); pagesPollTimer = null; }
+        pollPagesLoginOnce();
+        pagesPollTimer = setInterval(function () {
+          tries++;
+          if (tries > 120) {
+            stopPagesPoll();
+            if (elBtnTelegramLogin) elBtnTelegramLogin.disabled = false;
+            setPagesLoginStatus('Время ожидания истекло. Попробуйте ещё раз.', true);
+            return;
+          }
+          pollPagesLoginOnce();
+        }, 1500);
+      })
+      .catch(function (err) {
+        console.warn('[goals] bot login start failed', err);
+        if (elBtnTelegramLogin) elBtnTelegramLogin.disabled = false;
+        setPagesLoginStatus(
+          'Не удалось начать вход. Сервер API (' + API_BASE + ') может спать — подождите ~30–60 с и попробуйте снова.',
+          true
+        );
+      });
+  }
+
+  function onPagesTabVisible() {
+    if (document.visibilityState && document.visibilityState !== 'visible') return;
+    if (restorePagesCode()) pollPagesLoginOnce();
+  }
+  document.addEventListener('visibilitychange', onPagesTabVisible);
+  window.addEventListener('pageshow', onPagesTabVisible);
+
+  // Primary: bot deep-link + poll (works on mobile). Widget optional on desktop.
   if (elBtnTelegramLogin) {
-    elBtnTelegramLogin.addEventListener('click', function () {
+    elBtnTelegramLogin.addEventListener('click', startBotDeepLinkLogin);
+  }
+  if (elBtnWidgetLogin) {
+    elBtnWidgetLogin.addEventListener('click', function () {
       if (typeof openLoginModal === 'function') openLoginModal();
       else if (elBtnLogin) elBtnLogin.click();
     });
+  }
+  // Header "Войти" keeps widget modal for desktop convenience
+  if (elBtnLogin) {
+    // already wired to openLoginModal above
   }
 
   // ── Boot ───────────────────────────────────────────────────
@@ -3646,6 +3796,25 @@ body.is-dragging-task .app-main { touch-action: none; }
   render();
   refreshAuthUI();
 
+  if (restorePagesCode()) {
+    setPagesLoginStatus('Проверяем вход…');
+    if (elBtnTelegramLogin) elBtnTelegramLogin.disabled = true;
+    pollPagesLoginOnce();
+    if (!pagesPollTimer) {
+      var resumeTries = 0;
+      pagesPollTimer = setInterval(function () {
+        resumeTries++;
+        if (resumeTries > 60) {
+          stopPagesPoll();
+          if (elBtnTelegramLogin) elBtnTelegramLogin.disabled = false;
+          setPagesLoginStatus('Время ожидания истекло. Попробуйте ещё раз.', true);
+          return;
+        }
+        pollPagesLoginOnce();
+      }, 1500);
+    }
+  }
+
   // Try restore long-lived token / cookie session (survives Render sleep)
   apiFetch('/api/me')
     .then(function (r) {
@@ -3653,6 +3822,7 @@ body.is-dragging-task .app-main { touch-action: none; }
       return r.json();
     })
     .then(function (user) {
+      rememberPagesCode(null);
       return enterApiSession(user);
     })
     .catch(function () {

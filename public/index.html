@@ -3247,7 +3247,26 @@ body.is-dragging-task .app-main { touch-action: none; }
   var elUserChip = document.getElementById('user-chip');
   var elUserName = document.getElementById('user-name');
   var pollTimer = null;
+  var pendingLoginCode = null;
+  var pollInFlight = false;
+  var PENDING_CODE_KEY = 'GOALS_PENDING_LOGIN_CODE';
   var calendarReady = false;
+
+  function rememberPendingCode(code) {
+    pendingLoginCode = code || null;
+    try {
+      if (code) sessionStorage.setItem(PENDING_CODE_KEY, code);
+      else sessionStorage.removeItem(PENDING_CODE_KEY);
+    } catch (e) { /* ignore */ }
+  }
+  function restorePendingCode() {
+    if (pendingLoginCode) return pendingLoginCode;
+    try {
+      var c = sessionStorage.getItem(PENDING_CODE_KEY);
+      if (c) pendingLoginCode = c;
+    } catch (e) { /* ignore */ }
+    return pendingLoginCode;
+  }
 
   var TOKEN_KEY = 'GOALS_AUTH_TOKEN';
   function getAuthToken() {
@@ -3293,6 +3312,8 @@ body.is-dragging-task .app-main { touch-action: none; }
 
   function stopPoll() {
     if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+    rememberPendingCode(null);
+    pollInFlight = false;
   }
 
   function wireCalendarOnce() {
@@ -3422,6 +3443,44 @@ body.is-dragging-task .app-main { touch-action: none; }
       });
   }
 
+  function handleStatusResult(st) {
+    if (st.status === 'authenticated' && st.user) {
+      stopPoll();
+      if (st.token) setAuthToken(st.token);
+      setLoginStatus('Вход выполнен…');
+      return loadCalendarAndEnter(st.user);
+    }
+    if (st.status === 'expired' || st.status === 'invalid') {
+      stopPoll();
+      elBtnTelegram.disabled = false;
+      setLoginStatus('Код истёк. Запросите новый.', true);
+    }
+  }
+
+  function pollLoginOnce() {
+    if (!pendingLoginCode || pollInFlight || window.__goalsAuthed) return;
+    pollInFlight = true;
+    var code = pendingLoginCode;
+    apiFetch('/api/auth/telegram/status?code=' + encodeURIComponent(code))
+      .then(function (r) { return r.json(); })
+      .then(function (st) {
+        // Ignore stale responses after a new login started
+        if (pendingLoginCode !== code) return;
+        handleStatusResult(st);
+      })
+      .catch(function () { /* keep polling */ })
+      .then(function () { pollInFlight = false; });
+  }
+
+  function openBotLink(loginUrl) {
+    // Prefer visible <a> / location.assign — window.open often blocked on mobile
+    var opened = null;
+    try { opened = window.open(loginUrl, '_blank', 'noopener'); } catch (e) { opened = null; }
+    if (!opened || opened.closed) {
+      try { window.location.assign(loginUrl); } catch (e2) { /* ignore */ }
+    }
+  }
+
   function startTelegramLogin() {
     elBtnTelegram.disabled = true;
     setLoginStatus('Создаём ссылку…');
@@ -3433,12 +3492,16 @@ body.is-dragging-task .app-main { touch-action: none; }
       .then(function (r) { return r.json(); })
       .then(function (data) {
         if (!data.loginUrl || !data.code) throw new Error('no url');
-        setLoginStatus('');
-        elLoginStatus.innerHTML = 'Откройте бота и подтвердите вход: <a href="' + data.loginUrl + '" target="_blank" rel="noopener">@mygoals_bot</a>';
-        window.open(data.loginUrl, '_blank', 'noopener');
-        var code = data.code;
+        rememberPendingCode(data.code);
+        elLoginStatus.className = 'login-status';
+        elLoginStatus.innerHTML =
+          'Откройте бота и подтвердите вход: <a href="' + data.loginUrl +
+          '" rel="noopener">@mygoals_bot</a><br>' +
+          '<span style="display:block;margin-top:8px">Вернитесь на эту вкладку после подтверждения в боте</span>';
+        openBotLink(data.loginUrl);
         var tries = 0;
-        stopPoll();
+        if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+        pollLoginOnce();
         pollTimer = setInterval(function () {
           tries++;
           if (tries > 120) {
@@ -3447,22 +3510,7 @@ body.is-dragging-task .app-main { touch-action: none; }
             setLoginStatus('Время ожидания истекло. Попробуйте ещё раз.', true);
             return;
           }
-          apiFetch('/api/auth/telegram/status?code=' + encodeURIComponent(code))
-            .then(function (r) { return r.json(); })
-            .then(function (st) {
-              if (st.status === 'authenticated' && st.user) {
-                stopPoll();
-                if (st.token) setAuthToken(st.token);
-                setLoginStatus('Вход выполнен…');
-                return loadCalendarAndEnter(st.user);
-              }
-              if (st.status === 'expired' || st.status === 'invalid') {
-                stopPoll();
-                elBtnTelegram.disabled = false;
-                setLoginStatus('Код истёк. Запросите новый.', true);
-              }
-            })
-            .catch(function () { /* keep polling */ });
+          pollLoginOnce();
         }, 1500);
       })
       .catch(function () {
@@ -3471,6 +3519,13 @@ body.is-dragging-task .app-main { touch-action: none; }
       });
   }
 
+  function onTabVisible() {
+    if (document.visibilityState && document.visibilityState !== 'visible') return;
+    if (restorePendingCode()) pollLoginOnce();
+  }
+  document.addEventListener('visibilitychange', onTabVisible);
+  window.addEventListener('pageshow', onTabVisible);
+
   elBtnTelegram.addEventListener('click', startTelegramLogin);
   elBtnLogout.addEventListener('click', function () {
     apiFetch('/api/auth/logout', { method: 'POST' })
@@ -3478,13 +3533,38 @@ body.is-dragging-task .app-main { touch-action: none; }
       .catch(function () { clearAuthToken(); showLogin(); });
   });
 
+  // Resume bot-login poll after mobile return (location.assign / bfcache miss)
+  if (restorePendingCode() && !window.__goalsAuthed) {
+    setLoginStatus('Проверяем вход…');
+    elBtnTelegram.disabled = true;
+    pollLoginOnce();
+    if (!pollTimer) {
+      var tries = 0;
+      pollTimer = setInterval(function () {
+        tries++;
+        if (tries > 60 || window.__goalsAuthed) {
+          if (!window.__goalsAuthed && tries > 60) {
+            stopPoll();
+            elBtnTelegram.disabled = false;
+            setLoginStatus('Время ожидания истекло. Попробуйте ещё раз.', true);
+          } else if (window.__goalsAuthed) stopPoll();
+          return;
+        }
+        pollLoginOnce();
+      }, 1500);
+    }
+  }
+
   // Session / long-lived token restore
   apiFetch('/api/me')
     .then(function (r) {
       if (!r.ok) throw new Error('no session');
       return r.json();
     })
-    .then(function (user) { return loadCalendarAndEnter(user); })
+    .then(function (user) {
+      rememberPendingCode(null);
+      return loadCalendarAndEnter(user);
+    })
     .catch(function () { clearAuthToken(); showLogin(); });
 
 })();

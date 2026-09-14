@@ -53,7 +53,17 @@ function cleanupExpiredCodes(store) {
   const now = Date.now();
   let changed = false;
   for (const [code, entry] of Object.entries(store.loginCodes)) {
-    if (!entry || entry.expiresAt < now) {
+    if (!entry) {
+      delete store.loginCodes[code];
+      changed = true;
+      continue;
+    }
+    // Soft-claimed codes stay ~2 minutes for racing mobile polls, then expire
+    const claimedDone =
+      entry.status === 'claimed' &&
+      entry.claimedAt &&
+      now - entry.claimedAt > 2 * 60 * 1000;
+    if (entry.expiresAt < now || claimedDone) {
       delete store.loginCodes[code];
       changed = true;
     }
@@ -122,7 +132,7 @@ function consumeLoginCode(code, telegramUser) {
     save(store);
     return { ok: false, reason: 'expired' };
   }
-  if (entry.status === 'authenticated') {
+  if (entry.status === 'authenticated' || entry.status === 'claimed') {
     return { ok: true, userId: entry.userId, already: true };
   }
 
@@ -138,7 +148,28 @@ function consumeLoginCode(code, telegramUser) {
   return { ok: true, userId, user };
 }
 
+/**
+ * Soft-consume: mark claimed but keep ~2 minutes so racing polls
+ * (mobile visibility resume) still get { status:'authenticated', user, token }.
+ * Hard-delete happens in cleanupExpiredCodes after claimedAt + 2min.
+ */
 function markCodeUsed(code) {
+  const store = load();
+  const entry = store.loginCodes[code];
+  if (!entry) return;
+  if (entry.status === 'claimed' && entry.claimedAt) {
+    // already soft-claimed; refresh window slightly if still within grace
+    return;
+  }
+  const now = Date.now();
+  entry.status = 'claimed';
+  entry.claimedAt = now;
+  entry.expiresAt = now + 2 * 60 * 1000;
+  save(store);
+}
+
+/** Hard-delete a login code immediately (tests / admin). */
+function deleteLoginCode(code) {
   const store = load();
   if (store.loginCodes[code]) {
     delete store.loginCodes[code];
@@ -182,6 +213,7 @@ module.exports = {
   consumeLoginCode,
   upsertTelegramUser,
   markCodeUsed,
+  deleteLoginCode,
   getUser,
   getCalendar,
   setCalendar

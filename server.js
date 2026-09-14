@@ -244,13 +244,18 @@ app.get('/api/auth/telegram/status', (req, res) => {
   if (entry.expiresAt < Date.now()) {
     return res.json({ status: 'expired' });
   }
-  if (entry.status !== 'authenticated' || !entry.userId) {
+  // pending until bot confirms; authenticated OR soft-claimed both OK
+  if (
+    (entry.status !== 'authenticated' && entry.status !== 'claimed') ||
+    !entry.userId
+  ) {
     return res.json({ status: 'pending' });
   }
 
   const user = db.getUser(entry.userId);
   if (!user) return res.json({ status: 'invalid' });
 
+  // Soft-claim: keep code ~2min so racing mobile polls still succeed
   db.markCodeUsed(code);
   issueAuth(req, res, entry.userId, (err, token) => {
     if (err) return res.status(500).json({ error: 'session' });
@@ -263,7 +268,11 @@ app.post('/api/auth/telegram/complete', (req, res) => {
   if (!code) return res.status(400).json({ error: 'code required' });
 
   const entry = db.getLoginCode(code);
-  if (!entry || entry.status !== 'authenticated' || !entry.userId) {
+  const ready =
+    entry &&
+    (entry.status === 'authenticated' || entry.status === 'claimed') &&
+    entry.userId;
+  if (!ready) {
     return res.status(400).json({ error: 'not ready', status: entry ? entry.status : 'invalid' });
   }
 
