@@ -2678,6 +2678,12 @@ button, input, select, textarea { font: inherit; }
         return r.json();
       })
       .then(function (cal) {
+        enterApp(user, cal);
+      })
+      .catch(function (err) {
+        console.error(err);
+        elBtnTelegram.disabled = false;
+        setLoginStatus('Не удалось загрузить календарь. Попробуйте ещё раз.', true);
       });
   }
 
