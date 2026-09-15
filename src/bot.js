@@ -32,7 +32,7 @@ function createBot(token) {
       return;
     }
 
-    const result = db.consumeLoginCode(code, from);
+    const result = await db.consumeLoginCode(code, from);
     if (!result.ok) {
       if (result.reason === 'expired') {
         await ctx.reply('⏳ Код истёк. Запросите новый вход на сайте.');
@@ -57,6 +57,8 @@ function createBot(token) {
 }
 
 async function startBot(bot) {
+  // Production bot lives on Cloudflare Workers webhook.
+  // Never deleteWebhook / long-poll unless explicitly enabled — that steals updates from CF.
   const webhookUrl = process.env.WEBHOOK_URL;
   if (webhookUrl) {
     const path = process.env.WEBHOOK_PATH || '/telegram/webhook';
@@ -65,13 +67,18 @@ async function startBot(bot) {
     return { mode: 'webhook', path };
   }
 
-  await bot.api.deleteWebhook({ drop_pending_updates: false }).catch(() => {});
-  bot.start({
-    onStart: (info) => {
-      console.log('[bot] long polling as @' + (info.username || '?'));
-    }
-  });
-  return { mode: 'polling' };
+  if (process.env.ENABLE_TELEGRAM_POLLING === '1') {
+    await bot.api.deleteWebhook({ drop_pending_updates: false }).catch(() => {});
+    bot.start({
+      onStart: (info) => {
+        console.log('[bot] long polling as @' + (info.username || '?'));
+      }
+    });
+    return { mode: 'polling' };
+  }
+
+  console.log('[bot] skipped (use Cloudflare webhook; set ENABLE_TELEGRAM_POLLING=1 only for local bot tests)');
+  return { mode: 'skipped' };
 }
 
 module.exports = { createBot, startBot };

@@ -126,22 +126,26 @@ function issueAuth(req, res, userId, cb) {
   });
 }
 
-function requireAuth(req, res, next) {
-  const userId = resolveUserId(req);
-  if (!userId) {
-    return res.status(401).json({ error: 'unauthorized' });
+async function requireAuth(req, res, next) {
+  try {
+    const userId = resolveUserId(req);
+    if (!userId) {
+      return res.status(401).json({ error: 'unauthorized' });
+    }
+    const user = await db.getUser(userId);
+    if (!user) {
+      return res.status(401).json({ error: 'unauthorized' });
+    }
+    req.userId = userId;
+    req.user = user;
+    // Keep session warm when possible
+    if (req.session && !req.session.userId) {
+      req.session.userId = userId;
+    }
+    next();
+  } catch (err) {
+    next(err);
   }
-  const user = db.getUser(userId);
-  if (!user) {
-    return res.status(401).json({ error: 'unauthorized' });
-  }
-  req.userId = userId;
-  req.user = user;
-  // Keep session warm when possible
-  if (req.session && !req.session.userId) {
-    req.session.userId = userId;
-  }
-  next();
 }
 
 function publicUser(user) {
@@ -210,94 +214,114 @@ app.get('/api/health', (req, res) => {
   res.json({ ok: true });
 });
 
-app.get('/api/me', (req, res) => {
-  const userId = resolveUserId(req);
-  if (!userId) {
-    return res.status(401).json({ error: 'unauthorized' });
+app.get('/api/me', async (req, res, next) => {
+  try {
+    const userId = resolveUserId(req);
+    if (!userId) {
+      return res.status(401).json({ error: 'unauthorized' });
+    }
+    const user = await db.getUser(userId);
+    if (!user) {
+      if (req.session) req.session.destroy(() => {});
+      clearAuthCookie(res);
+      return res.status(401).json({ error: 'unauthorized' });
+    }
+    if (req.session && !req.session.userId) {
+      req.session.userId = userId;
+    }
+    res.json(publicUser(user));
+  } catch (err) {
+    next(err);
   }
-  const user = db.getUser(userId);
-  if (!user) {
-    if (req.session) req.session.destroy(() => {});
-    clearAuthCookie(res);
-    return res.status(401).json({ error: 'unauthorized' });
-  }
-  if (req.session && !req.session.userId) {
-    req.session.userId = userId;
-  }
-  res.json(publicUser(user));
 });
 
-app.post('/api/auth/telegram/start', (req, res) => {
-  const code = db.createLoginCode();
-  const loginUrl = `https://t.me/${BOT_USERNAME}?start=${code}`;
-  res.json({ loginUrl, code });
+app.post('/api/auth/telegram/start', async (req, res, next) => {
+  try {
+    const code = await db.createLoginCode();
+    const loginUrl = `https://t.me/${BOT_USERNAME}?start=${code}`;
+    res.json({ loginUrl, code });
+  } catch (err) {
+    next(err);
+  }
 });
 
-app.get('/api/auth/telegram/status', (req, res) => {
-  const code = String(req.query.code || '').toUpperCase().trim();
-  if (!code) return res.status(400).json({ error: 'code required' });
+app.get('/api/auth/telegram/status', async (req, res, next) => {
+  try {
+    const code = String(req.query.code || '').toUpperCase().trim();
+    if (!code) return res.status(400).json({ error: 'code required' });
 
-  const entry = db.getLoginCode(code);
-  if (!entry) {
-    return res.json({ status: 'invalid' });
-  }
-  if (entry.expiresAt < Date.now()) {
-    return res.json({ status: 'expired' });
-  }
-  // pending until bot confirms; authenticated OR soft-claimed both OK
-  if (
-    (entry.status !== 'authenticated' && entry.status !== 'claimed') ||
-    !entry.userId
-  ) {
-    return res.json({ status: 'pending' });
-  }
+    const entry = await db.getLoginCode(code);
+    if (!entry) {
+      return res.json({ status: 'invalid' });
+    }
+    if (entry.expiresAt < Date.now()) {
+      return res.json({ status: 'expired' });
+    }
+    // pending until bot confirms; authenticated OR soft-claimed both OK
+    if (
+      (entry.status !== 'authenticated' && entry.status !== 'claimed') ||
+      !entry.userId
+    ) {
+      return res.json({ status: 'pending' });
+    }
 
-  const user = db.getUser(entry.userId);
-  if (!user) return res.json({ status: 'invalid' });
+    const user = await db.getUser(entry.userId);
+    if (!user) return res.json({ status: 'invalid' });
 
-  // Soft-claim: keep code ~2min so racing mobile polls still succeed
-  db.markCodeUsed(code);
-  issueAuth(req, res, entry.userId, (err, token) => {
-    if (err) return res.status(500).json({ error: 'session' });
-    res.json({ status: 'authenticated', user: publicUser(user), token });
-  });
+    // Soft-claim: keep code ~2min so racing mobile polls still succeed
+    await db.markCodeUsed(code);
+    issueAuth(req, res, entry.userId, (err, token) => {
+      if (err) return res.status(500).json({ error: 'session' });
+      res.json({ status: 'authenticated', user: publicUser(user), token });
+    });
+  } catch (err) {
+    next(err);
+  }
 });
 
-app.post('/api/auth/telegram/complete', (req, res) => {
-  const code = String((req.body && req.body.code) || '').toUpperCase().trim();
-  if (!code) return res.status(400).json({ error: 'code required' });
+app.post('/api/auth/telegram/complete', async (req, res, next) => {
+  try {
+    const code = String((req.body && req.body.code) || '').toUpperCase().trim();
+    if (!code) return res.status(400).json({ error: 'code required' });
 
-  const entry = db.getLoginCode(code);
-  const ready =
-    entry &&
-    (entry.status === 'authenticated' || entry.status === 'claimed') &&
-    entry.userId;
-  if (!ready) {
-    return res.status(400).json({ error: 'not ready', status: entry ? entry.status : 'invalid' });
+    const entry = await db.getLoginCode(code);
+    const ready =
+      entry &&
+      (entry.status === 'authenticated' || entry.status === 'claimed') &&
+      entry.userId;
+    if (!ready) {
+      return res.status(400).json({ error: 'not ready', status: entry ? entry.status : 'invalid' });
+    }
+
+    const user = await db.getUser(entry.userId);
+    if (!user) return res.status(400).json({ error: 'user missing' });
+
+    await db.markCodeUsed(code);
+    issueAuth(req, res, entry.userId, (err, token) => {
+      if (err) return res.status(500).json({ error: 'session' });
+      res.json({ ok: true, user: publicUser(user), token });
+    });
+  } catch (err) {
+    next(err);
   }
-
-  const user = db.getUser(entry.userId);
-  if (!user) return res.status(400).json({ error: 'user missing' });
-
-  db.markCodeUsed(code);
-  issueAuth(req, res, entry.userId, (err, token) => {
-    if (err) return res.status(500).json({ error: 'session' });
-    res.json({ ok: true, user: publicUser(user), token });
-  });
 });
 
-app.post('/api/auth/telegram/widget', (req, res) => {
-  const verified = verifyTelegramWidgetAuth(req.body || {}, BOT_TOKEN);
-  if (!verified.ok) {
-    const status = verified.error === 'expired' ? 401 : 403;
-    return res.status(status).json({ error: verified.error || 'unauthorized' });
-  }
+app.post('/api/auth/telegram/widget', async (req, res, next) => {
+  try {
+    const verified = verifyTelegramWidgetAuth(req.body || {}, BOT_TOKEN);
+    if (!verified.ok) {
+      const status = verified.error === 'expired' ? 401 : 403;
+      return res.status(status).json({ error: verified.error || 'unauthorized' });
+    }
 
-  const { userId, user } = db.upsertTelegramUser(verified.telegramUser);
-  issueAuth(req, res, userId, (err, token) => {
-    if (err) return res.status(500).json({ error: 'session' });
-    res.json({ user: publicUser(user), token });
-  });
+    const { userId, user } = await db.upsertTelegramUser(verified.telegramUser);
+    issueAuth(req, res, userId, (err, token) => {
+      if (err) return res.status(500).json({ error: 'session' });
+      res.json({ user: publicUser(user), token });
+    });
+  } catch (err) {
+    next(err);
+  }
 });
 
 app.post('/api/auth/logout', (req, res) => {
@@ -312,14 +336,22 @@ app.post('/api/auth/logout', (req, res) => {
   });
 });
 
-app.get('/api/calendar', requireAuth, (req, res) => {
-  res.json(db.getCalendar(req.userId));
+app.get('/api/calendar', requireAuth, async (req, res, next) => {
+  try {
+    res.json(await db.getCalendar(req.userId));
+  } catch (err) {
+    next(err);
+  }
 });
 
-app.put('/api/calendar', requireAuth, (req, res) => {
-  const body = req.body || {};
-  const saved = db.setCalendar(req.userId, body);
-  res.json(saved);
+app.put('/api/calendar', requireAuth, async (req, res, next) => {
+  try {
+    const body = req.body || {};
+    const saved = await db.setCalendar(req.userId, body);
+    res.json(saved);
+  } catch (err) {
+    next(err);
+  }
 });
 
 const webhookPath = process.env.WEBHOOK_PATH || '/telegram/webhook';
@@ -344,6 +376,8 @@ app.use((req, res, next) => {
 });
 
 async function main() {
+  await db.init();
+
   // Bind HTTP first so Render Free health checks / PORT bind succeed even if bot is slow.
   await new Promise((resolve, reject) => {
     const server = app.listen(PORT, () => {
@@ -360,11 +394,16 @@ async function main() {
     console.error('[bot] getMe failed (continuing; bot may be unavailable):', e.message || e);
   }
 
-  try {
-    const mode = await startBot(bot);
-    console.log('[bot] started mode=' + mode.mode);
-  } catch (e) {
-    console.error('[bot] startBot failed (HTTP still up for API):', e.message || e);
+  // Prefer Cloudflare Workers for Telegram. Opt in with ENABLE_TELEGRAM_POLLING=1 or WEBHOOK_URL.
+  if (process.env.ENABLE_TELEGRAM_POLLING === '1' || process.env.WEBHOOK_URL) {
+    try {
+      const mode = await startBot(bot);
+      console.log('[bot] started mode=' + mode.mode);
+    } catch (e) {
+      console.error('[bot] startBot failed (HTTP still up for API):', e.message || e);
+    }
+  } else {
+    console.log('[bot] not started on this host (Cloudflare webhook owns the bot)');
   }
 }
 
