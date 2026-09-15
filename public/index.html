@@ -1602,7 +1602,7 @@ html.is-app .login-card {
       <p class="muted">Сетка: 00:00–24:00. По умолчанию открывается около 08:00. Время задач — в выбранном часовом поясе (синхронизируется между устройствами).</p>
       <section class="settings-section" id="settings-timezone">
         <h3>Часовой пояс</h3>
-        <p class="hint">По умолчанию — пояс этого устройства. Можно зафиксировать один пояс для телефона и компьютера (например, если на них разные настройки).</p>
+        <p class="hint">По умолчанию берётся пояс этого устройства — ничего выбирать не обязательно. Фиксированный пояс нужен только если на телефоне и компе разные пояса, а задачи должны совпадать.</p>
         <label class="settings-tz-label">Пояс
           <select id="settings-timezone-select"></select>
         </label>
@@ -4130,8 +4130,14 @@ html.is-app .login-card {
   // ── Timezone (device default or account preference) ─────────
   var TIMEZONE_OPTIONS = [
     { value: '', label: 'Как на этом устройстве' },
-    { value: 'Europe/Moscow', label: 'Москва (Europe/Moscow)' },
+    { value: 'Asia/Colombo', label: 'Коломбо / Шри-Ланка' },
+    { value: 'Asia/Dubai', label: 'Дубай' },
+    { value: 'Asia/Almaty', label: 'Алматы' },
+    { value: 'Asia/Tashkent', label: 'Ташкент' },
+    { value: 'Europe/Kyiv', label: 'Киев' },
+    { value: 'Europe/Minsk', label: 'Минск' },
     { value: 'Europe/Kaliningrad', label: 'Калининград' },
+    { value: 'Europe/Moscow', label: 'Москва' },
     { value: 'Europe/Samara', label: 'Самара' },
     { value: 'Asia/Yekaterinburg', label: 'Екатеринбург' },
     { value: 'Asia/Omsk', label: 'Омск' },
@@ -4142,12 +4148,6 @@ html.is-app .login-card {
     { value: 'Asia/Vladivostok', label: 'Владивосток' },
     { value: 'Asia/Magadan', label: 'Магадан' },
     { value: 'Asia/Kamchatka', label: 'Камчатка' },
-    { value: 'Europe/Minsk', label: 'Минск' },
-    { value: 'Europe/Kyiv', label: 'Киев' },
-    { value: 'Asia/Almaty', label: 'Алматы' },
-    { value: 'Asia/Tashkent', label: 'Ташкент' },
-    { value: 'Asia/Colombo', label: 'Коломбо / Шри-Ланка' },
-    { value: 'Asia/Dubai', label: 'Дубай' },
     { value: 'Europe/Berlin', label: 'Берлин' },
     { value: 'Europe/London', label: 'Лондон' },
     { value: 'America/New_York', label: 'Нью-Йорк' },
