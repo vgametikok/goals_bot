@@ -1460,6 +1460,7 @@ body.is-dragging-task .app-main { touch-action: none; }
     'Позвонить родителям', 'Поздравить друга', 'Записаться на стрижку', 'Проверить счета', 'Планирование бюджета'
   ];
 
+  var ALL_CATEGORY = '__all__';
   var DEFAULT_CALENDAR = { categories: [], badges: [], tasks: [], compact: false, viewMode: 'week' };
   var DEFAULT_CATEGORIES = DEFAULT_CALENDAR.categories;
   var DEFAULT_BADGES = DEFAULT_CALENDAR.badges;
@@ -1883,7 +1884,7 @@ body.is-dragging-task .app-main { touch-action: none; }
     state.categories = loaded.categories;
     state.badges = loaded.badges;
     state.compact = !!loaded.compact;
-    state.category = loaded.categories[0] ? loaded.categories[0].id : null;
+    state.category = loaded.categories.length ? ALL_CATEGORY : null;
     state.viewMode = (loaded.viewMode === 'month' || loaded.viewMode === 'day') ? loaded.viewMode : 'week';
     state.previousScheduleMode = loaded.viewMode === 'day' ? 'day' : 'week';
     rebuildMaps();
@@ -1996,9 +1997,29 @@ body.is-dragging-task .app-main { touch-action: none; }
       state.category = null;
       return;
     }
-    if (!state.categories.some(function (c) { return c.id === state.category; })) {
-      state.category = state.categories[0] ? state.categories[0].id : null;
+    if (state.category !== ALL_CATEGORY && !state.categories.some(function (c) { return c.id === state.category; })) {
+      state.category = ALL_CATEGORY;
     }
+    // «ВСЕ» — show every category at once
+    var allBtn = document.createElement('button');
+    allBtn.type = 'button';
+    allBtn.className = 'tab tab--all' + (state.category === ALL_CATEGORY ? ' is-active' : '');
+    allBtn.textContent = 'ВСЕ';
+    if (state.category === ALL_CATEGORY) {
+      allBtn.style.background = '#1f2937';
+      allBtn.style.color = '#fff';
+      allBtn.style.boxShadow = '0 6px 16px rgba(31,41,55,0.35)';
+    } else {
+      allBtn.style.color = '#374151';
+      allBtn.style.background = '#eef0f4';
+    }
+    allBtn.addEventListener('click', function () {
+      state.category = ALL_CATEGORY;
+      state.scrollToDefaultHour = false;
+      state.savedScrollTop = elMain.scrollTop;
+      render();
+    });
+    elTabs.appendChild(allBtn);
     state.categories.forEach(function (c) {
       var btn = document.createElement('button');
       btn.type = 'button';
@@ -2071,7 +2092,7 @@ body.is-dragging-task .app-main { touch-action: none; }
     var dayISOs = days.map(function (d) { return toISODate(d); });
     var dayWeekdays = days.map(function (d) { return weekdayIndex(d); });
     state.tasks.forEach(function (t) {
-      if (t.category !== state.category) return;
+      if (state.category !== ALL_CATEGORY && t.category !== state.category) return;
       if (t.repeatWeekly && t.repeatDays && t.repeatDays.length) {
         dayISOs.forEach(function (iso, i) {
           if (t.repeatDays.indexOf(dayWeekdays[i]) === -1) return;
@@ -3237,7 +3258,9 @@ body.is-dragging-task .app-main { touch-action: none; }
     elFormTitle.placeholder = randomTitlePlaceholder();
     elForm.title.value = '';
     elForm.subtitle.value = '';
-    elForm.category.value = state.category;
+    elForm.category.value = (state.category && state.category !== ALL_CATEGORY)
+      ? state.category
+      : (state.categories[0] ? state.categories[0].id : '');
     elForm.date.value = date;
     elForm.start.value = padTime(minutesToTime(startMinutes));
     elForm.end.value = padTime(minutesToTime(Math.min(startMinutes + 45, HOUR_END * 60)));
@@ -3927,7 +3950,7 @@ body.is-dragging-task .app-main { touch-action: none; }
       state.categories = loaded.categories;
       state.badges = loaded.badges;
       state.compact = !!loaded.compact;
-      state.category = loaded.categories[0] ? loaded.categories[0].id : null;
+      state.category = loaded.categories.length ? ALL_CATEGORY : null;
       state.viewMode = (loaded.viewMode === 'month' || loaded.viewMode === 'day') ? loaded.viewMode : 'week';
       rebuildMaps();
       refreshAuthUI();
