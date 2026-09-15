@@ -2068,6 +2068,7 @@ html.is-app .login-card {
       body: JSON.stringify(calendarPayload())
     }).then(function (r) {
       if (!r.ok) throw new Error('save ' + r.status);
+      syncReminders();
     }).catch(function (err) {
       console.warn('[goals] calendar save failed', err);
     }).finally(function () {
@@ -2082,6 +2083,8 @@ html.is-app .login-card {
     if (apiSession && calendarHydrated) {
       if (apiSaveTimer) clearTimeout(apiSaveTimer);
       apiSaveTimer = setTimeout(flushApiSave, 500);
+      // Reschedule ASAP from local state; flushApiSave will sync again after PUT.
+      syncReminders();
     }
   }
 
@@ -4096,6 +4099,128 @@ html.is-app .login-card {
       });
   }
 
+
+  // ── Native / browser reminders (15 min before start, 10 min before end) ──
+  var REMINDER_HORIZON_DAYS = 14;
+  var browserReminderTimers = [];
+
+  function clearBrowserReminderTimers() {
+    browserReminderTimers.forEach(function (t) { try { clearTimeout(t); } catch (e) {} });
+    browserReminderTimers = [];
+  }
+
+  function occurrenceLocalMs(isoDate, minutes) {
+    var d = new Date(isoDate + 'T00:00:00');
+    d.setHours(0, 0, 0, 0);
+    d.setMinutes(Number(minutes) || 0);
+    return d.getTime();
+  }
+
+  function buildReminderItems() {
+    var items = [];
+    var now = Date.now();
+    var days = [];
+    var base = new Date();
+    base.setHours(12, 0, 0, 0);
+    for (var i = 0; i < REMINDER_HORIZON_DAYS; i++) {
+      days.push(addDays(base, i));
+    }
+    // Expand without category filter
+    var prevCat = state.category;
+    state.category = ALL_CATEGORY;
+    var expanded = expandTasksForRange(days);
+    state.category = prevCat;
+
+    expanded.forEach(function (occ) {
+      if (occ.completed) return;
+      var startMs = occurrenceLocalMs(occ.date, occ.startMinutes);
+      var endMs = occurrenceLocalMs(occ.date, occ.endMinutes);
+      if (!(endMs > startMs)) {
+        endMs = startMs + 45 * 60 * 1000;
+      }
+      var title = occ.title || 'Задача';
+      // start reminder: fire at startMs - 15m (Android applies lead)
+      if (startMs - 15 * 60 * 1000 > now) {
+        items.push({
+          id: String(occ.id) + ':start',
+          title: title,
+          startMs: startMs,
+          kind: 'start'
+        });
+      }
+      // end reminder: fire at endMs - 10m
+      if (endMs - 10 * 60 * 1000 > now) {
+        items.push({
+          id: String(occ.id) + ':end',
+          title: title,
+          endMs: endMs,
+          startMs: endMs,
+          kind: 'end'
+        });
+      }
+    });
+
+    items.sort(function (a, b) {
+      var ta = a.kind === 'end' ? (a.endMs || a.startMs) : a.startMs;
+      var tb = b.kind === 'end' ? (b.endMs || b.startMs) : b.startMs;
+      return ta - tb;
+    });
+    // Cap roughly matches Android (~40)
+    if (items.length > 40) items = items.slice(0, 40);
+    return items;
+  }
+
+  function scheduleBrowserFallback(items) {
+    clearBrowserReminderTimers();
+    if (typeof window.MyGoalsAndroid !== 'undefined') return;
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+    var now = Date.now();
+    items.forEach(function (it) {
+      var isEnd = it.kind === 'end';
+      var eventMs = isEnd ? (it.endMs || it.startMs) : it.startMs;
+      var lead = isEnd ? 10 * 60 * 1000 : 15 * 60 * 1000;
+      var fireAt = eventMs - lead;
+      var delay = fireAt - now;
+      if (delay <= 0 || delay > 24 * 60 * 60 * 1000) return; // only while page open / next day
+      var t = setTimeout(function () {
+        try {
+          var hh = new Date(eventMs);
+          var when = String(hh.getHours()).padStart(2, '0') + ':' + String(hh.getMinutes()).padStart(2, '0');
+          var nTitle = isEnd ? ('Скоро конец: ' + it.title) : ('Скоро: ' + it.title);
+          var nBody = isEnd ? ('Завершится в ' + when) : ('Начнётся в ' + when);
+          new Notification(nTitle, { body: nBody });
+        } catch (e) {}
+      }, delay);
+      browserReminderTimers.push(t);
+    });
+  }
+
+  function syncReminders() {
+    try {
+      var items = buildReminderItems();
+      if (typeof window.MyGoalsAndroid !== 'undefined' && window.MyGoalsAndroid) {
+        if (typeof window.MyGoalsAndroid.scheduleReminders === 'function') {
+          window.MyGoalsAndroid.scheduleReminders(JSON.stringify(items));
+        }
+      } else {
+        scheduleBrowserFallback(items);
+      }
+    } catch (err) {
+      console.warn('[goals] syncReminders failed', err);
+    }
+  }
+  window.__mygoalsSyncReminders = syncReminders;
+
+  function requestNativeNotificationPermission() {
+    try {
+      if (typeof window.MyGoalsAndroid !== 'undefined'
+          && window.MyGoalsAndroid
+          && typeof window.MyGoalsAndroid.requestNotificationPermission === 'function') {
+        window.MyGoalsAndroid.requestNotificationPermission();
+      }
+    } catch (e) {}
+  }
+
   function fetchCalendarAndApply() {
     return apiFetch('/api/calendar')
       .then(function (r) {
@@ -4109,6 +4234,7 @@ html.is-app .login-card {
         saveStateLocal();
         state.scrollToDefaultHour = true;
         render();
+        syncReminders();
       });
   }
 
@@ -4119,6 +4245,7 @@ html.is-app .login-card {
     });
   }
   window.__mygoalsRefetchCalendar = refetchCalendarFromServer;
+  // __mygoalsSyncReminders set above with syncReminders
 
   function enterApiSession(user, token) {
     if (token) setAuthToken(token);
@@ -4133,6 +4260,7 @@ html.is-app .login-card {
     refreshAuthUI();
     if (typeof showAppLoggedIn === "function") showAppLoggedIn(!!(typeof readAuthUser === "function" && readAuthUser()));
     closeLoginModal();
+    requestNativeNotificationPermission();
     return fetchCalendarAndApply().catch(function (err) {
       console.warn('[goals] calendar load after login', err);
       calendarHydrated = false;
