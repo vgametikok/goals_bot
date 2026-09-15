@@ -107,6 +107,70 @@ button, input, select, textarea { font: inherit; }
 .app-header { display: flex; flex-direction: column; gap: 18px; margin-bottom: 18px; flex: none; }
 .app-header__top { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
 .tabs { display: flex; flex-wrap: wrap; gap: 10px; }
+
+/* Top strip: categories + actions scroll together on touch */
+.top-scroll {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  padding-bottom: 2px;
+}
+.top-scroll::-webkit-scrollbar { display: none; }
+.top-scroll .tabs {
+  display: flex;
+  flex-wrap: nowrap;
+  flex: 0 0 auto;
+  gap: 8px;
+  overflow: visible;
+  margin: 0;
+  padding: 0;
+}
+.top-scroll .tab { flex: 0 0 auto; }
+.top-scroll .header-actions {
+  display: flex;
+  flex-wrap: nowrap;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+.top-scroll .header-actions__panel {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  position: static;
+  min-width: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  gap: 8px;
+}
+.top-scroll .btn--more { display: none; }
+.top-scroll .header-actions__panel .btn,
+.top-scroll .header-actions__panel .user-chip {
+  flex: 0 0 auto;
+  width: auto;
+  min-height: 40px;
+  white-space: nowrap;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  padding: 8px 14px;
+}
+.top-scroll .user-chip {
+  display: inline-flex;
+  align-items: center;
+}
 .tab {
   border: none; border-radius: 999px; padding: 10px 18px;
   font-weight: 600; font-size: 0.92rem; cursor: pointer;
@@ -485,12 +549,36 @@ body.is-dragging-task .app-main { touch-action: none; }
     padding-top: calc(10px + env(safe-area-inset-top, 0px));
     max-width: 100%;
   }
-  .app-header { gap: 10px; margin-bottom: 10px; }
-  .app-header__top {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 10px;
+
+  /* Mobile: one scroll row, no dead gap under categories */
+  .app-header {
+    gap: 6px !important;
+    margin-bottom: 6px !important;
   }
+  .app-header__top {
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  .app-header__week {
+    gap: 6px !important;
+    margin: 0 !important;
+  }
+  .header-menu-backdrop { display: none !important; }
+  .btn--more { display: none !important; }
+  .header-actions__panel {
+    display: flex !important;
+    position: static !important;
+    flex-direction: row !important;
+    box-shadow: none !important;
+    border: none !important;
+    background: transparent !important;
+    padding: 0 !important;
+    min-width: 0 !important;
+  }
+
   .tabs {
     flex-wrap: nowrap;
     overflow-x: auto;
@@ -1246,19 +1334,26 @@ html.is-app .app {
   max-width: 100% !important;
   width: 100% !important;
 }
+html.is-app .app-header {
+  gap: 6px !important;
+  margin-bottom: 6px !important;
+}
 html.is-app .app-header__top {
-  flex-direction: column;
-  align-items: stretch;
-  gap: 10px;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 0 !important;
 }
-html.is-app .tabs {
-  flex-wrap: nowrap;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
-  gap: 8px;
+html.is-app .btn--more { display: none !important; }
+html.is-app .header-menu-backdrop { display: none !important; }
+html.is-app .header-actions__panel {
+  display: flex !important;
+  position: static !important;
+  flex-direction: row !important;
+  box-shadow: none !important;
+  border: none !important;
+  background: transparent !important;
+  padding: 0 !important;
 }
-html.is-app .tabs::-webkit-scrollbar { display: none; }
 html.is-app .week-title { font-size: 1.15rem; min-width: 0; flex: 1; }
 html.is-app .view-seg { display: none !important; }
 html.is-app .app-header__week .btn--week { display: none !important; }
@@ -1296,6 +1391,21 @@ html.is-app .login-card {
   max-width: 100% !important;
 }
 
+
+@media (min-width: 769px) and (pointer: fine) {
+  .top-scroll {
+    overflow: visible;
+    flex-wrap: wrap;
+    touch-action: auto;
+  }
+  .top-scroll .tabs { flex-wrap: wrap; }
+  .top-scroll .btn--more { display: none; }
+  .top-scroll .header-actions__panel {
+    display: flex;
+    flex-wrap: wrap;
+  }
+}
+
 </style>
 </head>
 <body>
@@ -1315,6 +1425,7 @@ html.is-app .login-card {
 <div class="app" id="app-root" hidden>
   <header class="app-header">
     <div class="app-header__top">
+      <div class="top-scroll" id="top-scroll">
       <nav class="tabs" id="tabs" aria-label="Категории"></nav>
       <div class="header-actions">
         <button type="button" class="btn btn--more" id="btn-more" aria-expanded="false" aria-controls="header-actions-panel" title="Меню">⋯</button>
@@ -1331,6 +1442,7 @@ html.is-app .login-card {
           <button type="button" class="btn btn--logout" id="btn-logout" hidden>Выйти</button>
           <button type="button" class="btn btn--settings" id="btn-settings">⚙ Настройки</button>
         </div>
+      </div>
       </div>
       <div class="header-menu-backdrop" id="header-menu-backdrop" hidden></div>
     </div>
@@ -3570,6 +3682,8 @@ html.is-app .login-card {
       bar.addEventListener('click', function (e) {
         var more = e.target.closest('#tab-more');
         if (more) {
+          var settingsBtn = document.getElementById('btn-settings');
+          if (settingsBtn) { settingsBtn.click(); return; }
           var moreBtn = document.getElementById('btn-more');
           if (moreBtn) moreBtn.click();
           return;
