@@ -4109,11 +4109,18 @@ html.is-app .login-card {
     browserReminderTimers = [];
   }
 
+  // Tasks are authored in Moscow wall time (МСК on the grid).
+  // Convert date + minutes-from-midnight → epoch ms as Europe/Moscow (UTC+3, no DST).
   function occurrenceLocalMs(isoDate, minutes) {
-    var d = new Date(isoDate + 'T00:00:00');
-    d.setHours(0, 0, 0, 0);
-    d.setMinutes(Number(minutes) || 0);
-    return d.getTime();
+    var parts = String(isoDate || '').split('-');
+    if (parts.length !== 3) return NaN;
+    var y = parseInt(parts[0], 10);
+    var m = parseInt(parts[1], 10);
+    var day = parseInt(parts[2], 10);
+    var mins = Number(minutes) || 0;
+    if (!y || !m || !day) return NaN;
+    // Moscow wall clock → UTC epoch: UTC = Moscow - 3h
+    return Date.UTC(y, m - 1, day, 0, 0, 0, 0) + mins * 60000 - 3 * 60 * 60 * 1000;
   }
 
   function buildReminderItems() {
@@ -4199,8 +4206,15 @@ html.is-app .login-card {
     try {
       var items = buildReminderItems();
       if (typeof window.MyGoalsAndroid !== 'undefined' && window.MyGoalsAndroid) {
+        if (typeof window.MyGoalsAndroid.ensureExactAlarms === 'function') {
+          try { window.MyGoalsAndroid.ensureExactAlarms(); } catch (e0) {}
+        }
         if (typeof window.MyGoalsAndroid.scheduleReminders === 'function') {
-          window.MyGoalsAndroid.scheduleReminders(JSON.stringify(items));
+          window.MyGoalsAndroid.scheduleReminders(JSON.stringify({
+            tz: 'Europe/Moscow',
+            phoneNowMs: Date.now(),
+            items: items
+          }));
         }
       } else {
         scheduleBrowserFallback(items);
