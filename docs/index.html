@@ -1601,9 +1601,9 @@ html.is-app .login-card {
     <div class="modal__body">
       <p class="muted">Сетка: 00:00–24:00. По умолчанию открывается около 08:00. Время задач — в выбранном часовом поясе (синхронизируется между устройствами).</p>
       <section class="settings-section" id="settings-timezone">
-        <h3>Часовой пояс</h3>
-        <p class="hint">По умолчанию берётся пояс этого устройства — ничего выбирать не обязательно. Фиксированный пояс нужен только если на телефоне и компе разные пояса, а задачи должны совпадать.</p>
-        <label class="settings-tz-label">Пояс
+        <h3>Смещение времени (UTC)</h3>
+        <p class="hint">По умолчанию — смещение этого устройства. Можно зафиксировать UTC±N, чтобы телефон и компьютер совпадали.</p>
+        <label class="settings-tz-label">UTC-смещение
           <select id="settings-timezone-select"></select>
         </label>
         <p class="hint" id="settings-timezone-hint" style="margin-top:8px"></p>
@@ -2531,7 +2531,7 @@ html.is-app .login-card {
 
     var html = '<div class="week-grid' + (isDay ? ' week-grid--day' : '') + '">';
     html += '<div class="week-grid__header">';
-    html += '<div class="week-grid__corner"><span class="tz">' + esc(timezoneShortLabel(effectiveTimeZone())) + '</span></div>';
+    html += '<div class="week-grid__corner"><span class="tz">' + esc(timezoneShortLabel()) + '</span></div>';
     days.forEach(function (day, i) {
       var iso = toISODate(day);
       var wd = weekdayIndex(day);
@@ -4117,7 +4117,7 @@ html.is-app .login-card {
   }
 
 
-  // ── Native / browser reminders (15 min before start, 10 min before end) ──
+  // ── Native / browser reminders (10 min before start, 10 min before end) ──
   var REMINDER_HORIZON_DAYS = 14;
   var browserReminderTimers = [];
 
@@ -4128,61 +4128,75 @@ html.is-app .login-card {
 
 
   // ── Timezone (device default or account preference) ─────────
-  var TIMEZONE_OPTIONS = [
-    { value: '', label: 'Как на этом устройстве' },
-    { value: 'Asia/Colombo', label: 'Коломбо / Шри-Ланка' },
-    { value: 'Asia/Dubai', label: 'Дубай' },
-    { value: 'Asia/Almaty', label: 'Алматы' },
-    { value: 'Asia/Tashkent', label: 'Ташкент' },
-    { value: 'Europe/Kyiv', label: 'Киев' },
-    { value: 'Europe/Minsk', label: 'Минск' },
-    { value: 'Europe/Kaliningrad', label: 'Калининград' },
-    { value: 'Europe/Moscow', label: 'Москва' },
-    { value: 'Europe/Samara', label: 'Самара' },
-    { value: 'Asia/Yekaterinburg', label: 'Екатеринбург' },
-    { value: 'Asia/Omsk', label: 'Омск' },
-    { value: 'Asia/Novosibirsk', label: 'Новосибирск' },
-    { value: 'Asia/Krasnoyarsk', label: 'Красноярск' },
-    { value: 'Asia/Irkutsk', label: 'Иркутск' },
-    { value: 'Asia/Yakutsk', label: 'Якутск' },
-    { value: 'Asia/Vladivostok', label: 'Владивосток' },
-    { value: 'Asia/Magadan', label: 'Магадан' },
-    { value: 'Asia/Kamchatka', label: 'Камчатка' },
-    { value: 'Europe/Berlin', label: 'Берлин' },
-    { value: 'Europe/London', label: 'Лондон' },
-    { value: 'America/New_York', label: 'Нью-Йорк' },
-    { value: 'America/Los_Angeles', label: 'Лос-Анджелес' },
-    { value: 'UTC', label: 'UTC' }
-  ];
+  // UTC offsets only (no city names). Empty = this device's current offset.
+  // Stored as "+03:00", "-05:30", or "".
+  function deviceUtcOffsetMinutes() {
+    // JS getTimezoneOffset: minutes *behind* UTC. Device UTC+3 → -180 → we want +180.
+    return -new Date().getTimezoneOffset();
+  }
 
-  function deviceTimeZone() {
-    try {
-      return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
-    } catch (e) {
-      return 'UTC';
+  function formatUtcOffset(totalMinutes) {
+    var sign = totalMinutes >= 0 ? '+' : '-';
+    var abs = Math.abs(totalMinutes | 0);
+    var h = Math.floor(abs / 60);
+    var m = abs % 60;
+    var hh = (h < 10 ? '0' : '') + h;
+    var mm = (m < 10 ? '0' : '') + m;
+    return sign + hh + ':' + mm;
+  }
+
+  function parseUtcOffset(value) {
+    if (!value) return null;
+    var s = String(value).trim();
+    if (!s || s === 'device') return null;
+    // Accept "+3", "+03", "+03:00", "UTC+3", "UTC+03:00"
+    s = s.replace(/^UTC/i, '');
+    var m = s.match(/^([+-])(\d{1,2})(?::?(\d{2}))?$/);
+    if (!m) return null;
+    var sign = m[1] === '-' ? -1 : 1;
+    var h = parseInt(m[2], 10);
+    var mins = m[3] ? parseInt(m[3], 10) : 0;
+    if (h > 14 || mins > 59) return null;
+    return sign * (h * 60 + mins);
+  }
+
+  function buildUtcOffsetOptions() {
+    var opts = [{ value: '', label: 'Как на этом устройстве (' + formatUtcOffset(deviceUtcOffsetMinutes()) + ')' }];
+    // Full common range UTC−12 … UTC+14, including :30 and :45 where used
+    var half = {};
+    [30, 45, -30, -45].forEach(function () {});
+    var extras = [30, 45, -30, -45, 330, -210, 345, -180]; // will dedupe via loop
+    var seen = {};
+    function add(min) {
+      if (min < -12 * 60 || min > 14 * 60) return;
+      if (seen[min]) return;
+      seen[min] = true;
+      var v = formatUtcOffset(min);
+      opts.push({ value: v, label: 'UTC' + v });
     }
+    for (var h = -12; h <= 14; h++) add(h * 60);
+    // Half-hour / 45-min offsets used worldwide
+    [30, -30, 45, -45, 90, -90, 210, -210, 330, -330, 345, -345, 390, -390, 525, -525].forEach(add);
+    // Sort by offset minutes (device option stays first)
+    var head = opts[0];
+    var rest = opts.slice(1).sort(function (a, b) {
+      return parseUtcOffset(a.value) - parseUtcOffset(b.value);
+    });
+    return [head].concat(rest);
+  }
+
+  function effectiveUtcOffsetMinutes() {
+    var parsed = parseUtcOffset(state && state.timezone);
+    if (parsed == null) return deviceUtcOffsetMinutes();
+    return parsed;
   }
 
   function effectiveTimeZone() {
-    var tz = (state && state.timezone) ? String(state.timezone).trim() : '';
-    return tz || deviceTimeZone();
+    // Label for UI / payload — always an offset string
+    return formatUtcOffset(effectiveUtcOffsetMinutes());
   }
 
-  function getTimeZoneOffsetMs(timeZone, instantMs) {
-    var dtf = new Intl.DateTimeFormat('en-US', {
-      timeZone: timeZone,
-      year: 'numeric', month: '2-digit', day: '2-digit',
-      hour: '2-digit', minute: '2-digit', second: '2-digit',
-      hourCycle: 'h23'
-    });
-    var parts = dtf.formatToParts(new Date(instantMs));
-    var g = {};
-    parts.forEach(function (p) { if (p.type !== 'literal') g[p.type] = p.value; });
-    var asUTC = Date.UTC(+g.year, +g.month - 1, +g.day, +g.hour, +g.minute, +g.second);
-    return asUTC - instantMs;
-  }
-
-  /** Wall-clock date + minutes-from-midnight in effective TZ → epoch ms */
+  /** Wall-clock date + minutes-from-midnight in effective UTC offset → epoch ms */
   function occurrenceLocalMs(isoDate, minutes) {
     var parts = String(isoDate || '').split('-');
     if (parts.length !== 3) return NaN;
@@ -4191,73 +4205,58 @@ html.is-app .login-card {
     var day = parseInt(parts[2], 10);
     var mins = Number(minutes) || 0;
     if (!y || !m || !day) return NaN;
-    var hour = Math.floor(mins / 60);
-    var min = mins % 60;
-    var tz = effectiveTimeZone();
-    // Device-local fast path when preference is empty (same as "this device")
-    if (!(state && state.timezone)) {
-      var d = new Date(y, m - 1, day, 0, 0, 0, 0);
-      d.setMinutes(mins);
-      return d.getTime();
-    }
-    var utcGuess = Date.UTC(y, m - 1, day, hour, min, 0);
-    var instant = utcGuess;
-    for (var i = 0; i < 3; i++) {
-      var offset = getTimeZoneOffsetMs(tz, instant);
-      instant = Date.UTC(y, m - 1, day, hour, min, 0) - offset;
-    }
-    return instant;
+    var offsetMin = effectiveUtcOffsetMinutes();
+    // Wall time as if in fixed offset: UTC = wall - offset
+    return Date.UTC(y, m - 1, day, 0, 0, 0, 0) + mins * 60000 - offsetMin * 60000;
   }
 
-  function timezoneShortLabel(tz) {
-    try {
-      var parts = new Intl.DateTimeFormat('ru-RU', {
-        timeZone: tz,
-        timeZoneName: 'short'
-      }).formatToParts(new Date());
-      var name = '';
-      parts.forEach(function (p) { if (p.type === 'timeZoneName') name = p.value; });
-      return name || tz;
-    } catch (e) {
-      return tz || 'LOCAL';
-    }
+  function timezoneShortLabel() {
+    return 'UTC' + formatUtcOffset(effectiveUtcOffsetMinutes());
   }
 
   function fillTimezoneSelect() {
     var sel = document.getElementById('settings-timezone-select');
     var hint = document.getElementById('settings-timezone-hint');
     if (!sel) return;
-    var device = deviceTimeZone();
     var cur = state.timezone || '';
+    // Normalize legacy IANA values → nearest current device or drop to device
+    if (cur && parseUtcOffset(cur) == null) {
+      cur = '';
+      state.timezone = '';
+    }
+    var opts = buildUtcOffsetOptions();
     sel.innerHTML = '';
-    TIMEZONE_OPTIONS.forEach(function (opt) {
+    opts.forEach(function (opt) {
       var o = document.createElement('option');
       o.value = opt.value;
-      o.textContent = opt.value === ''
-        ? (opt.label + ' (' + device + ')')
-        : opt.label;
+      o.textContent = opt.label;
       sel.appendChild(o);
     });
-    // If current tz not in list, add it
-    if (cur && !TIMEZONE_OPTIONS.some(function (o) { return o.value === cur; })) {
+    if (cur && !opts.some(function (o) { return o.value === cur; })) {
       var extra = document.createElement('option');
       extra.value = cur;
-      extra.textContent = cur;
+      extra.textContent = 'UTC' + cur;
       sel.appendChild(extra);
     }
     sel.value = cur;
     if (hint) {
-      hint.textContent = 'Сейчас для задач и уведомлений: ' + effectiveTimeZone()
-        + ' (' + timezoneShortLabel(effectiveTimeZone()) + ').';
+      hint.textContent = 'Для задач и уведомлений сейчас: UTC' + formatUtcOffset(effectiveUtcOffsetMinutes())
+        + (cur ? ' (зафиксировано в аккаунте)' : ' (с этого устройства)');
     }
   }
 
   function setTimezonePreference(tz) {
-    state.timezone = tz ? String(tz).trim() : '';
+    var parsed = parseUtcOffset(tz);
+    state.timezone = (tz && parsed != null) ? formatUtcOffset(parsed) : '';
     saveState();
     fillTimezoneSelect();
     render();
     syncReminders();
+  }
+
+  function clearBrowserReminderTimers() {
+    browserReminderTimers.forEach(function (t) { try { clearTimeout(t); } catch (e) {} });
+    browserReminderTimers = [];
   }
 
 
@@ -4285,7 +4284,7 @@ html.is-app .login-card {
       }
       var title = occ.title || 'Задача';
       // start reminder: fire at startMs - 15m (Android applies lead)
-      if (startMs - 15 * 60 * 1000 > now) {
+      if (startMs - 10 * 60 * 1000 > now) {
         items.push({
           id: String(occ.id) + ':start',
           title: title,
@@ -4323,7 +4322,7 @@ html.is-app .login-card {
     items.forEach(function (it) {
       var isEnd = it.kind === 'end';
       var eventMs = isEnd ? (it.endMs || it.startMs) : it.startMs;
-      var lead = isEnd ? 10 * 60 * 1000 : 15 * 60 * 1000;
+      var lead = isEnd ? 10 * 60 * 1000 : 10 * 60 * 1000;
       var fireAt = eventMs - lead;
       var delay = fireAt - now;
       if (delay <= 0 || delay > 24 * 60 * 60 * 1000) return; // only while page open / next day
