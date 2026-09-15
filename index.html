@@ -3305,7 +3305,7 @@ body.is-dragging-task .app-main { touch-action: none; }
     elSettingsModal.hidden = true;
   }
 
-  // ── Render ─────────────────────────────────────────────────
+  // ── API ─────────────────────────────────────────────────
   function syncMonthUI() {
     var on = state.viewMode === 'month';
     if (elApp) elApp.classList.toggle('is-month', on);
@@ -3704,7 +3704,7 @@ body.is-dragging-task .app-main { touch-action: none; }
     closeHeaderMenu();
   });
 
-  // ── Telegram login (Pages → Render API + Login Widget) ──
+  // ── Telegram login (Pages → API API + Login Widget) ──
   var AUTH_KEY = 'goals-telegram-user-v1';
   var API_BASE = (function () {
     try {
@@ -3820,15 +3820,15 @@ body.is-dragging-task .app-main { touch-action: none; }
     s.setAttribute('data-onauth', 'onTelegramAuth(user)');
     elTgBox.appendChild(s);
 
-    // Soft health check so user sees sleeping-server hint early
+    // Soft health check so user sees a hint if API is down
     fetch(API_BASE + '/api/health', { credentials: 'include', mode: 'cors' })
       .then(function (r) {
         if (!r.ok) throw new Error('health');
       })
       .catch(function () {
         setLoginApiError(
-          'Сервер API недоступен (возможно, Render Free спит или ещё не задеплоен). ' +
-          'Подождите ~30–60 с и попробуйте снова. URL: ' + API_BASE
+          'Сервер API недоступен (возможно, API спит или ещё не задеплоен). ' +
+          'Попробуйте ещё раз через несколько секунд. URL: ' + API_BASE
         );
       });
   }
@@ -3909,7 +3909,7 @@ body.is-dragging-task .app-main { touch-action: none; }
         refreshAuthUI();
         setLoginApiError(
           'Не удалось связаться с сервером API (' + API_BASE + '). ' +
-          'Частая причина на Render Free — сервис спит или ещё не задеплоен. ' +
+          'Проверьте сеть или что API Worker задеплоен. ' +
           'Подождите минуту и войдите снова. Данные пока только локально в браузере.'
         );
       });
@@ -4084,7 +4084,7 @@ body.is-dragging-task .app-main { touch-action: none; }
         console.warn('[goals] bot login start failed', err);
         if (elBtnTelegramLogin) elBtnTelegramLogin.disabled = false;
         setPagesLoginStatus(
-          'Не удалось начать вход. Сервер API (' + API_BASE + ') может спать — подождите ~30–60 с и попробуйте снова.',
+          'Не удалось начать вход. API (' + API_BASE + ') недоступен. Попробуйте ещё раз через несколько секунд.',
           true
         );
       });
@@ -4137,7 +4137,7 @@ body.is-dragging-task .app-main { touch-action: none; }
     }
   }
 
-  // Try restore long-lived token / cookie session (survives Render sleep)
+  // Try restore long-lived token / cookie session
   apiFetch('/api/me')
     .then(function (r) {
       if (!r.ok) throw new Error('no session');

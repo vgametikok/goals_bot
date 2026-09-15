@@ -378,7 +378,7 @@ app.use((req, res, next) => {
 async function main() {
   await db.init();
 
-  // Bind HTTP first so Render Free health checks / PORT bind succeed even if bot is slow.
+  // Bind HTTP first so health checks / PORT bind succeed even if bot is slow.
   await new Promise((resolve, reject) => {
     const server = app.listen(PORT, () => {
       console.log(`[server] listening on :${PORT}`);

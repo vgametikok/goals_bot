@@ -2,7 +2,7 @@
 
 const crypto = require('crypto');
 
-/** ~400 days — survive Render Free sleep/restarts without re-widget. */
+/** ~400 days — long-lived device session without re-login. */
 const TOKEN_TTL_MS = 400 * 24 * 60 * 60 * 1000;
 const TOKEN_TTL_SEC = Math.floor(TOKEN_TTL_MS / 1000);
 

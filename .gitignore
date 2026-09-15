@@ -7,3 +7,8 @@ data/
 npm-debug.log*
 .idea/
 .vscode/
+
+# Cloudflare Workers
+cloudflare/.dev.vars
+cloudflare/.wrangler/
+cloudflare/node_modules/

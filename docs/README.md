@@ -1,13 +1,9 @@
-# GitHub Pages
+# GitHub Pages (фронт)
 
-Эта папка публикуется как сайт на GitHub Pages.
+Сайт: https://vgametikok.github.io/goals_bot/
 
-В репозитории: **Settings → Pages → Build and deployment → Source: Deploy from a branch → Branch: `main` → Folder: `/docs` → Save**.
+Статический фронт ходит на Cloudflare Worker API:
+`https://mygoals-api.vgametikok.workers.dev`
+(или переопределение через `localStorage.GOALS_API`).
 
-Сайт: `https://vgametikok.github.io/goals_bot/`
-
-Статический фронт ходит на API Render Free (`https://goals-bot.onrender.com` или `localStorage.GOALS_API`).
-Вход — Telegram Login Widget → `POST /api/auth/telegram/widget` (cookie-сессия, CORS).
-Без API календарь работает офлайн через `localStorage`.
-
-См. корневой `README.md` → раздел «Деплой на Render Free».
+Бэкенд и бот — только Cloudflare Workers + D1. См. корневой `README.md` и `cloudflare/README.md`.
