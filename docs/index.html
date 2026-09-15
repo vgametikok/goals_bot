@@ -1825,10 +1825,14 @@ body.is-dragging-task .app-main { touch-action: none; }
   var apiSaveTimer = null;
   var apiSaveInFlight = false;
   var apiSaveQueued = false;
+  // Do not PUT to API until we have loaded the server calendar once this session
+  // (prevents empty WebView/local cache from wiping the shared account).
+  var calendarHydrated = false;
 
   function flushApiSave() {
     apiSaveTimer = null;
     if (!apiSession) return;
+    if (!calendarHydrated) return;
     if (apiSaveInFlight) { apiSaveQueued = true; return; }
     apiSaveInFlight = true;
     apiFetch('/api/calendar', {
@@ -1846,12 +1850,12 @@ body.is-dragging-task .app-main { touch-action: none; }
   }
 
   function saveState() {
-    if (apiSession) {
+    // Always keep a local mirror so WebView/APK reopen faster and stay consistent.
+    saveStateLocal();
+    if (apiSession && calendarHydrated) {
       if (apiSaveTimer) clearTimeout(apiSaveTimer);
       apiSaveTimer = setTimeout(flushApiSave, 500);
-      return;
     }
-    saveStateLocal();
   }
 
   function applyCalendarData(data) {
@@ -1907,7 +1911,7 @@ body.is-dragging-task .app-main { touch-action: none; }
     categories: loaded.categories,
     badges: loaded.badges,
     compact: !!loaded.compact,
-    category: loaded.categories[0] ? loaded.categories[0].id : null,
+    category: loaded.categories.length ? ALL_CATEGORY : null,
     weekStart: startOfWeek(new Date()),
     viewMode: (loaded.viewMode === 'month' || loaded.viewMode === 'day') ? loaded.viewMode : 'week',
     previousScheduleMode: loaded.viewMode === 'day' ? 'day' : 'week',
@@ -1923,8 +1927,8 @@ body.is-dragging-task .app-main { touch-action: none; }
     userChoseWeekOnMobile: false
   };
   rebuildMaps();
-  // Persist migrated shape so v2 exists even if only legacy tasks were present
-  saveState();
+  // Local-only mirror at boot; never PUT until calendarHydrated
+  saveStateLocal();
 
   // ── DOM refs ───────────────────────────────────────────────
   var elTabs = document.getElementById('tabs');
@@ -3864,12 +3868,21 @@ body.is-dragging-task .app-main { touch-action: none; }
       })
       .then(function (cal) {
         applyCalendarData(cal || {});
-        // Persist normalized calendar (no demo seed)
-        saveState();
+        calendarHydrated = true;
+        // Mirror server → localStorage; do not immediately PUT back (avoids wipe races).
+        saveStateLocal();
         state.scrollToDefaultHour = true;
         render();
       });
   }
+
+  function refetchCalendarFromServer() {
+    if (!apiSession) return Promise.resolve();
+    return fetchCalendarAndApply().catch(function (err) {
+      console.warn('[goals] calendar refetch failed', err);
+    });
+  }
+  window.__mygoalsRefetchCalendar = refetchCalendarFromServer;
 
   function enterApiSession(user, token) {
     if (token) setAuthToken(token);
@@ -3882,9 +3895,16 @@ body.is-dragging-task .app-main { touch-action: none; }
       lastName: user.lastName || user.last_name || ''
     });
     refreshAuthUI();
-  if (typeof showAppLoggedIn === "function") showAppLoggedIn(!!(typeof readAuthUser === "function" && readAuthUser()));
+    if (typeof showAppLoggedIn === "function") showAppLoggedIn(!!(typeof readAuthUser === "function" && readAuthUser()));
     closeLoginModal();
-    return fetchCalendarAndApply();
+    return fetchCalendarAndApply().catch(function (err) {
+      console.warn('[goals] calendar load after login', err);
+      calendarHydrated = false;
+      if (typeof setPagesLoginStatus === 'function') {
+        setPagesLoginStatus('Не удалось загрузить календарь с сервера. Потяните вниз или откройте приложение снова.', true);
+      }
+      throw err;
+    });
   }
 
   window.onTelegramAuth = function (user) {
@@ -4130,6 +4150,8 @@ body.is-dragging-task .app-main { touch-action: none; }
   function onPagesTabVisible() {
     if (document.visibilityState && document.visibilityState !== 'visible') return;
     if (restorePagesCode()) pollPagesLoginOnce();
+    // Pull latest from Cloudflare when returning to the app/tab (desktop ↔ phone).
+    if (apiSession) refetchCalendarFromServer();
   }
   document.addEventListener('visibilitychange', onPagesTabVisible);
   window.addEventListener('pageshow', onPagesTabVisible);
