@@ -1440,7 +1440,7 @@ html.is-app .login-card {
 
 <div class="login-screen" id="login-screen">
   <div class="login-card">
-    <img class="login-logo" src="assets/mygoals-logo.png" alt="MYGOALS" width="560" height="315" />
+    <img class="login-logo" src="mygoals-logo.png" alt="MYGOALS" width="560" height="315" />
     <button type="button" class="btn btn--telegram" id="btn-telegram-login">
       <span aria-hidden="true">✈️</span> Войти через Telegram
     </button>
@@ -1505,7 +1505,7 @@ html.is-app .login-card {
 <div class="modal login-modal" id="login-modal" hidden>
   <div class="modal-backdrop" data-close-login></div>
   <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="login-title">
-    <img class="login-logo" src="assets/mygoals-logo.png" alt="MYGOALS" width="560" height="315" />
+    <img class="login-logo" src="mygoals-logo.png" alt="MYGOALS" width="560" height="315" />
     <p class="login-bot-hint">Бот: <a href="https://t.me/mygoals_bot" target="_blank" rel="noopener noreferrer">@mygoals_bot</a></p>
     <div class="tg-box" id="tg-login-widget"></div>
     <p class="hint login-api-error" id="login-api-error" hidden style="color:#b91c1c;"></p>
@@ -1599,7 +1599,15 @@ html.is-app .login-card {
       <button type="button" class="icon-btn" id="settings-close" aria-label="Закрыть">×</button>
     </header>
     <div class="modal__body">
-      <p class="muted">Данные хранятся локально в браузере (localStorage). Часовой пояс сетки: МСК. Сетка: 00:00–24:00, по умолчанию открывается около 08:00 — прокрутите колёсиком вверх/вниз.</p>
+      <p class="muted">Сетка: 00:00–24:00. По умолчанию открывается около 08:00. Время задач — в выбранном часовом поясе (синхронизируется между устройствами).</p>
+      <section class="settings-section" id="settings-timezone">
+        <h3>Часовой пояс</h3>
+        <p class="hint">По умолчанию — пояс этого устройства. Можно зафиксировать один пояс для телефона и компьютера (например, если на них разные настройки).</p>
+        <label class="settings-tz-label">Пояс
+          <select id="settings-timezone-select"></select>
+        </label>
+        <p class="hint" id="settings-timezone-hint" style="margin-top:8px"></p>
+      </section>
       <ul class="settings-list">
         <li>Перетаскивайте карточки на другой день или время (на телефоне — долгое нажатие или «Переместить»)</li>
         <li>Клик / касание пустой ячейки — новая задача</li>
@@ -1688,7 +1696,7 @@ html.is-app .login-card {
   ];
 
   var ALL_CATEGORY = '__all__';
-  var DEFAULT_CALENDAR = { categories: [], badges: [], tasks: [], compact: false, viewMode: 'week' };
+  var DEFAULT_CALENDAR = { categories: [], badges: [], tasks: [], compact: false, viewMode: 'week', timezone: '' };
   var DEFAULT_CATEGORIES = DEFAULT_CALENDAR.categories;
   var DEFAULT_BADGES = DEFAULT_CALENDAR.badges;
   var FALLBACK_CAT = { id: '_none', label: 'Без категории', color: '#7c5cbf', bg: '#f3eefc', border: '#c4b0ef', soft: '#ebe3f8' };
@@ -1979,6 +1987,7 @@ html.is-app .login-card {
     var tasks = [];
     var compact = false;
     var viewMode = 'week';
+    var timezone = '';
     var hadStored = false;
 
     try {
@@ -1991,7 +2000,7 @@ html.is-app .login-card {
             // Wipe pure demo seed so returning demo-only installs get a clean slate
             try { localStorage.removeItem(STORAGE_KEY); } catch (e0) {}
             try { localStorage.removeItem(LEGACY_TASKS_KEY); } catch (e1) {}
-            return { categories: [], badges: [], tasks: [], compact: false, viewMode: 'week' };
+            return { categories: [], badges: [], tasks: [], compact: false, viewMode: 'week', timezone: '' };
           }
           if (Array.isArray(parsed.categories)) {
             categories = parsed.categories.map(normalizeCategory).filter(Boolean);
@@ -2008,6 +2017,7 @@ html.is-app .login-card {
           if (parsed.viewMode === 'week' || parsed.viewMode === 'day' || parsed.viewMode === 'month') {
             viewMode = parsed.viewMode;
           }
+          if (typeof parsed.timezone === 'string') timezone = parsed.timezone;
         }
       }
     } catch (e) { /* ignore */ }
@@ -2030,7 +2040,7 @@ html.is-app .login-card {
     }
 
     tasks = tasks.map(function (t) { return normalizeTask(t, categories, badges); }).filter(Boolean);
-    return { categories: categories, badges: badges, tasks: tasks, compact: compact, viewMode: viewMode };
+    return { categories: categories, badges: badges, tasks: tasks, compact: compact, viewMode: viewMode, timezone: timezone };
   }
 
   function calendarPayload() {
@@ -2039,7 +2049,8 @@ html.is-app .login-card {
       badges: state.badges,
       tasks: state.tasks,
       compact: !!state.compact,
-      viewMode: state.viewMode === 'month' ? 'month' : (state.viewMode === 'day' ? 'day' : 'week')
+      viewMode: state.viewMode === 'month' ? 'month' : (state.viewMode === 'day' ? 'day' : 'week'),
+      timezone: state.timezone || ''
     };
   }
 
@@ -2095,9 +2106,10 @@ html.is-app .login-card {
       var tasks = [];
       var compact = false;
       var viewMode = 'week';
+      var timezone = '';
       if (parsed && typeof parsed === 'object') {
         if (isLegacyDemoOnly(parsed)) {
-          return { categories: [], badges: [], tasks: [], compact: false, viewMode: 'week' };
+          return { categories: [], badges: [], tasks: [], compact: false, viewMode: 'week', timezone: '' };
         }
         if (Array.isArray(parsed.categories)) {
           categories = parsed.categories.map(normalizeCategory).filter(Boolean);
@@ -2110,14 +2122,16 @@ html.is-app .login-card {
         if (parsed.viewMode === 'week' || parsed.viewMode === 'day' || parsed.viewMode === 'month') {
           viewMode = parsed.viewMode;
         }
+        if (typeof parsed.timezone === 'string') timezone = parsed.timezone;
       }
       tasks = tasks.map(function (t) { return normalizeTask(t, categories, badges); }).filter(Boolean);
-      return { categories: categories, badges: badges, tasks: tasks, compact: compact, viewMode: viewMode };
+      return { categories: categories, badges: badges, tasks: tasks, compact: compact, viewMode: viewMode, timezone: timezone };
     })(data || {});
     state.tasks = loaded.tasks;
     state.categories = loaded.categories;
     state.badges = loaded.badges;
     state.compact = !!loaded.compact;
+    state.timezone = loaded.timezone || '';
     state.category = loaded.categories.length ? ALL_CATEGORY : null;
     state.viewMode = (loaded.viewMode === 'month' || loaded.viewMode === 'day') ? loaded.viewMode : 'week';
     state.previousScheduleMode = loaded.viewMode === 'day' ? 'day' : 'week';
@@ -2141,6 +2155,7 @@ html.is-app .login-card {
     categories: loaded.categories,
     badges: loaded.badges,
     compact: !!loaded.compact,
+    timezone: loaded.timezone || '',
     category: loaded.categories.length ? ALL_CATEGORY : null,
     weekStart: startOfWeek(new Date()),
     viewMode: (loaded.viewMode === 'month' || loaded.viewMode === 'day') ? loaded.viewMode : 'week',
@@ -2516,7 +2531,7 @@ html.is-app .login-card {
 
     var html = '<div class="week-grid' + (isDay ? ' week-grid--day' : '') + '">';
     html += '<div class="week-grid__header">';
-    html += '<div class="week-grid__corner"><span class="tz">МСК</span></div>';
+    html += '<div class="week-grid__corner"><span class="tz">' + esc(timezoneShortLabel(effectiveTimeZone())) + '</span></div>';
     days.forEach(function (day, i) {
       var iso = toISODate(day);
       var wd = weekdayIndex(day);
@@ -3276,6 +3291,7 @@ html.is-app .login-card {
 
   // ── Categories / badges management ─────────────────────────
   function renderSettingsManagers() {
+    fillTimezoneSelect();
     // Categories
     elCatList.innerHTML = '';
     state.categories.forEach(function (c) {
@@ -3740,6 +3756,7 @@ html.is-app .login-card {
     render();
   });
   document.getElementById('btn-settings').addEventListener('click', function () {
+    fillTimezoneSelect();
     closeMonthPopover();
     renderSettingsManagers();
     elSettingsModal.hidden = false;
@@ -4109,8 +4126,63 @@ html.is-app .login-card {
     browserReminderTimers = [];
   }
 
-  // Tasks are authored in Moscow wall time (МСК on the grid).
-  // Convert date + minutes-from-midnight → epoch ms as Europe/Moscow (UTC+3, no DST).
+
+  // ── Timezone (device default or account preference) ─────────
+  var TIMEZONE_OPTIONS = [
+    { value: '', label: 'Как на этом устройстве' },
+    { value: 'Europe/Moscow', label: 'Москва (Europe/Moscow)' },
+    { value: 'Europe/Kaliningrad', label: 'Калининград' },
+    { value: 'Europe/Samara', label: 'Самара' },
+    { value: 'Asia/Yekaterinburg', label: 'Екатеринбург' },
+    { value: 'Asia/Omsk', label: 'Омск' },
+    { value: 'Asia/Novosibirsk', label: 'Новосибирск' },
+    { value: 'Asia/Krasnoyarsk', label: 'Красноярск' },
+    { value: 'Asia/Irkutsk', label: 'Иркутск' },
+    { value: 'Asia/Yakutsk', label: 'Якутск' },
+    { value: 'Asia/Vladivostok', label: 'Владивосток' },
+    { value: 'Asia/Magadan', label: 'Магадан' },
+    { value: 'Asia/Kamchatka', label: 'Камчатка' },
+    { value: 'Europe/Minsk', label: 'Минск' },
+    { value: 'Europe/Kyiv', label: 'Киев' },
+    { value: 'Asia/Almaty', label: 'Алматы' },
+    { value: 'Asia/Tashkent', label: 'Ташкент' },
+    { value: 'Asia/Colombo', label: 'Коломбо / Шри-Ланка' },
+    { value: 'Asia/Dubai', label: 'Дубай' },
+    { value: 'Europe/Berlin', label: 'Берлин' },
+    { value: 'Europe/London', label: 'Лондон' },
+    { value: 'America/New_York', label: 'Нью-Йорк' },
+    { value: 'America/Los_Angeles', label: 'Лос-Анджелес' },
+    { value: 'UTC', label: 'UTC' }
+  ];
+
+  function deviceTimeZone() {
+    try {
+      return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+    } catch (e) {
+      return 'UTC';
+    }
+  }
+
+  function effectiveTimeZone() {
+    var tz = (state && state.timezone) ? String(state.timezone).trim() : '';
+    return tz || deviceTimeZone();
+  }
+
+  function getTimeZoneOffsetMs(timeZone, instantMs) {
+    var dtf = new Intl.DateTimeFormat('en-US', {
+      timeZone: timeZone,
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', second: '2-digit',
+      hourCycle: 'h23'
+    });
+    var parts = dtf.formatToParts(new Date(instantMs));
+    var g = {};
+    parts.forEach(function (p) { if (p.type !== 'literal') g[p.type] = p.value; });
+    var asUTC = Date.UTC(+g.year, +g.month - 1, +g.day, +g.hour, +g.minute, +g.second);
+    return asUTC - instantMs;
+  }
+
+  /** Wall-clock date + minutes-from-midnight in effective TZ → epoch ms */
   function occurrenceLocalMs(isoDate, minutes) {
     var parts = String(isoDate || '').split('-');
     if (parts.length !== 3) return NaN;
@@ -4119,9 +4191,75 @@ html.is-app .login-card {
     var day = parseInt(parts[2], 10);
     var mins = Number(minutes) || 0;
     if (!y || !m || !day) return NaN;
-    // Moscow wall clock → UTC epoch: UTC = Moscow - 3h
-    return Date.UTC(y, m - 1, day, 0, 0, 0, 0) + mins * 60000 - 3 * 60 * 60 * 1000;
+    var hour = Math.floor(mins / 60);
+    var min = mins % 60;
+    var tz = effectiveTimeZone();
+    // Device-local fast path when preference is empty (same as "this device")
+    if (!(state && state.timezone)) {
+      var d = new Date(y, m - 1, day, 0, 0, 0, 0);
+      d.setMinutes(mins);
+      return d.getTime();
+    }
+    var utcGuess = Date.UTC(y, m - 1, day, hour, min, 0);
+    var instant = utcGuess;
+    for (var i = 0; i < 3; i++) {
+      var offset = getTimeZoneOffsetMs(tz, instant);
+      instant = Date.UTC(y, m - 1, day, hour, min, 0) - offset;
+    }
+    return instant;
   }
+
+  function timezoneShortLabel(tz) {
+    try {
+      var parts = new Intl.DateTimeFormat('ru-RU', {
+        timeZone: tz,
+        timeZoneName: 'short'
+      }).formatToParts(new Date());
+      var name = '';
+      parts.forEach(function (p) { if (p.type === 'timeZoneName') name = p.value; });
+      return name || tz;
+    } catch (e) {
+      return tz || 'LOCAL';
+    }
+  }
+
+  function fillTimezoneSelect() {
+    var sel = document.getElementById('settings-timezone-select');
+    var hint = document.getElementById('settings-timezone-hint');
+    if (!sel) return;
+    var device = deviceTimeZone();
+    var cur = state.timezone || '';
+    sel.innerHTML = '';
+    TIMEZONE_OPTIONS.forEach(function (opt) {
+      var o = document.createElement('option');
+      o.value = opt.value;
+      o.textContent = opt.value === ''
+        ? (opt.label + ' (' + device + ')')
+        : opt.label;
+      sel.appendChild(o);
+    });
+    // If current tz not in list, add it
+    if (cur && !TIMEZONE_OPTIONS.some(function (o) { return o.value === cur; })) {
+      var extra = document.createElement('option');
+      extra.value = cur;
+      extra.textContent = cur;
+      sel.appendChild(extra);
+    }
+    sel.value = cur;
+    if (hint) {
+      hint.textContent = 'Сейчас для задач и уведомлений: ' + effectiveTimeZone()
+        + ' (' + timezoneShortLabel(effectiveTimeZone()) + ').';
+    }
+  }
+
+  function setTimezonePreference(tz) {
+    state.timezone = tz ? String(tz).trim() : '';
+    saveState();
+    fillTimezoneSelect();
+    render();
+    syncReminders();
+  }
+
 
   function buildReminderItems() {
     var items = [];
@@ -4211,7 +4349,7 @@ html.is-app .login-card {
         }
         if (typeof window.MyGoalsAndroid.scheduleReminders === 'function') {
           window.MyGoalsAndroid.scheduleReminders(JSON.stringify({
-            tz: 'Europe/Moscow',
+            tz: effectiveTimeZone(),
             phoneNowMs: Date.now(),
             items: items
           }));
@@ -4548,6 +4686,15 @@ html.is-app .login-card {
   if (elBtnLogin) {
     // already wired to openLoginModal above
   }
+
+
+  var elTzSelect = document.getElementById('settings-timezone-select');
+  if (elTzSelect) {
+    elTzSelect.addEventListener('change', function () {
+      setTimezonePreference(elTzSelect.value);
+    });
+  }
+  // Refresh timezone UI whenever settings open
 
   // ── Boot ───────────────────────────────────────────────────
   initFormSelects();

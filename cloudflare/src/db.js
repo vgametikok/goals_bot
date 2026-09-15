@@ -7,7 +7,8 @@ export const DEFAULT_CALENDAR = {
   badges: [],
   tasks: [],
   compact: false,
-  viewMode: 'week'
+  viewMode: 'week',
+  timezone: ''
 };
 
 function cloneDefaultCalendar() {
@@ -16,12 +17,14 @@ function cloneDefaultCalendar() {
 
 export function normalizeCalendar(data) {
   const d = data || {};
+  const tz = typeof d.timezone === 'string' ? d.timezone.trim() : '';
   return {
     categories: Array.isArray(d.categories) ? d.categories : DEFAULT_CALENDAR.categories,
     badges: Array.isArray(d.badges) ? d.badges : DEFAULT_CALENDAR.badges,
     tasks: Array.isArray(d.tasks) ? d.tasks : [],
     compact: !!d.compact,
-    viewMode: d.viewMode === 'month' || d.viewMode === 'day' ? d.viewMode : 'week'
+    viewMode: d.viewMode === 'month' || d.viewMode === 'day' ? d.viewMode : 'week',
+    timezone: tz
   };
 }
 
