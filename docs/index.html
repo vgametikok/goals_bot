@@ -2,8 +2,18 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>MYGOALS</title>
+<script>
+(function () {
+  try {
+    var ua = navigator.userAgent || '';
+    var isWv = /\bwv\b/.test(ua) || /\bAndroid\b/.test(ua);
+    var narrow = Math.min(screen.width || 0, window.innerWidth || screen.width || 0) <= 900;
+    if (isWv || narrow) document.documentElement.classList.add('is-app');
+  } catch (e) {}
+})();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -72,6 +82,23 @@
 *, *::before, *::after { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; }
 body { min-width: 320px; background: var(--bg); height: 100%; }
+
+html, body {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+html.is-app, html.is-app body {
+  width: 100% !important;
+  max-width: 100% !important;
+  overflow-x: hidden !important;
+}
+html.is-app .app {
+  max-width: 100% !important;
+  width: 100% !important;
+  margin: 0 !important;
+  box-sizing: border-box;
+}
 button, input, select, textarea { font: inherit; }
 .app {
   max-width: 1280px; margin: 0 auto; padding: 20px 24px 16px;
@@ -1209,6 +1236,66 @@ body.is-dragging-task .app-main { touch-action: none; }
   .mobile-tabbar { display: none !important; }
 }
 
+
+/* Force mobile chrome inside Android WebView / narrow app shell */
+html.is-app .mobile-only { display: inline-flex !important; }
+html.is-app .desktop-only { display: none !important; }
+html.is-app .app {
+  padding: 10px 12px calc(72px + env(safe-area-inset-bottom, 0px));
+  padding-top: calc(10px + env(safe-area-inset-top, 0px));
+  max-width: 100% !important;
+  width: 100% !important;
+}
+html.is-app .app-header__top {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+}
+html.is-app .tabs {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  gap: 8px;
+}
+html.is-app .tabs::-webkit-scrollbar { display: none; }
+html.is-app .week-title { font-size: 1.15rem; min-width: 0; flex: 1; }
+html.is-app .view-seg { display: none !important; }
+html.is-app .app-header__week .btn--week { display: none !important; }
+html.is-app #btn-month.view-seg-legacy { display: none !important; }
+html.is-app .mobile-tabbar {
+  display: grid !important;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+  position: fixed;
+  left: 12px; right: 12px;
+  bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+  z-index: 40;
+  padding: 8px 6px;
+  background: rgba(255,255,255,0.94);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  box-shadow: var(--shadow-sm);
+}
+html.is-app .app-main,
+html.is-app #main {
+  width: 100% !important;
+  max-width: 100% !important;
+}
+html.is-app .week-grid,
+html.is-app .month-grid {
+  width: 100% !important;
+  max-width: 100% !important;
+}
+html.is-app .login-screen {
+  width: 100% !important;
+  max-width: 100% !important;
+}
+html.is-app .login-card {
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
 </style>
 </head>
 <body>
@@ -1955,8 +2042,12 @@ body.is-dragging-task .app-main { touch-action: none; }
   var elApp = document.querySelector('.app');
   var monthPopoverIso = null;
 
+  function isAndroidWebView() {
+    try { return /wv/.test(navigator.userAgent || ''); } catch (e) { return false; }
+  }
   function isMobileLayout() {
     try {
+      if (isAndroidWebView() || document.documentElement.classList.contains('is-app')) return true;
       return window.matchMedia(MOBILE_MQ).matches || window.matchMedia(COARSE_MQ).matches;
     } catch (e) {
       return window.innerWidth <= 768;
@@ -1964,8 +2055,11 @@ body.is-dragging-task .app-main { touch-action: none; }
   }
 
   function isNarrowScreen() {
-    try { return window.matchMedia(MOBILE_MQ).matches; }
-    catch (e) { return window.innerWidth <= 768; }
+    try {
+      if (typeof isAndroidWebView === 'function' && isAndroidWebView()) return true;
+      if (document.documentElement.classList.contains('is-app')) return true;
+      return window.matchMedia(MOBILE_MQ).matches;
+    } catch (e) { return window.innerWidth <= 768; }
   }
 
   function getSlotHeight() {
