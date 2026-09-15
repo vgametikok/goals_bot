@@ -3795,12 +3795,25 @@ body.is-dragging-task .app-main { touch-action: none; }
   }
 
   function openBotLink(loginUrl) {
-    // Prefer visible <a> / location.assign — window.open often blocked on mobile
-    var opened = null;
-    try { opened = window.open(loginUrl, '_blank', 'noopener'); } catch (e) { opened = null; }
-    if (!opened || opened.closed) {
-      try { window.location.assign(loginUrl); } catch (e2) { /* ignore */ }
-    }
+    // Never navigate THIS tab away from the site.
+    // With noopener, window.open often returns null even when a new tab opened —
+    // so we must not fall back to location.assign (that was losing the site).
+    try {
+      window.open(loginUrl, '_blank', 'noopener,noreferrer');
+    } catch (e) { /* ignore */ }
+    // On phones, also poke the Telegram app via tg:// without leaving the page.
+    try {
+      var m = String(loginUrl || '').match(/t\.me\/([^?/]+)(?:\?start=([^&]+))?/i);
+      if (m) {
+        var tg = 'tg://resolve?domain=' + encodeURIComponent(m[1]);
+        if (m[2]) tg += '&start=' + encodeURIComponent(m[2]);
+        var iframe = document.createElement('iframe');
+        iframe.style.display = 'none';
+        iframe.src = tg;
+        document.body.appendChild(iframe);
+        setTimeout(function () { try { iframe.remove(); } catch (e3) {} }, 1500);
+      }
+    } catch (e2) { /* ignore */ }
   }
 
   function startTelegramLogin() {
@@ -3818,7 +3831,7 @@ body.is-dragging-task .app-main { touch-action: none; }
         elLoginStatus.className = 'login-status';
         elLoginStatus.innerHTML =
           'Откройте бота и подтвердите вход: <a href="' + data.loginUrl +
-          '" rel="noopener">@mygoals_bot</a><br>' +
+          '" target="_blank" rel="noopener noreferrer">@mygoals_bot</a><br>' +
           '<span style="display:block;margin-top:8px">Вернитесь на эту вкладку после подтверждения в боте</span>';
         openBotLink(data.loginUrl);
         var tries = 0;
